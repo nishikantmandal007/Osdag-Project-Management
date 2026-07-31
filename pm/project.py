@@ -254,11 +254,53 @@ def link_repository(gql: GraphQL, project_id: str, repo_id: str) -> None:
 
 
 def repository_id(gql: GraphQL, owner: str, name: str) -> str:
-    data = gql(
-        "query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){id} }",
-        owner=owner,
-        name=name,
-    )
+    try:
+        data = gql(
+            "query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){id} }",
+            owner=owner,
+            name=name,
+        )
+    except ProjectError as exc:
+        if "Could not resolve to a Repository" in str(exc):
+            raise ProjectError(_repo_invisible_help(gql, f"{owner}/{name}")) from exc
+        raise
     if not data.get("repository"):
-        raise ProjectError(f"no such repository: {owner}/{name}")
+        raise ProjectError(_repo_invisible_help(gql, f"{owner}/{name}"))
     return data["repository"]["id"]
+
+
+def _repo_invisible_help(gql: GraphQL, repo: str) -> str:
+    """Turn 'Could not resolve to a Repository' into a specific remediation.
+
+    The token authenticated fine (we resolved the owner), so this is almost
+    always a fine-grained PAT that either does not list this repository under
+    'Repository access', or lacks the Metadata permission that makes any repo
+    resolvable at all.
+    """
+    try:
+        viewer = gql("{ viewer { login } }")["viewer"]["login"]
+    except ProjectError:
+        viewer = "(unknown)"
+
+    try:
+        visible = gql(
+            "{ viewer { repositories(first:20, affiliations:[OWNER]) { totalCount nodes { nameWithOwner } } } }"
+        )["viewer"]["repositories"]
+        names = ", ".join(n["nameWithOwner"] for n in visible["nodes"]) or "(none)"
+        seen = f"{visible['totalCount']} repo(s) visible to this token: {names}"
+    except ProjectError:
+        seen = "could not list repositories visible to this token"
+
+    return (
+        f"token cannot see {repo}.\n"
+        f"  authenticated as: {viewer}\n"
+        f"  {seen}\n"
+        "\n"
+        "For a fine-grained PAT, check github.com/settings/personal-access-tokens:\n"
+        f"  - 'Repository access' must explicitly include {repo}\n"
+        "  - Repository permissions need at minimum: Metadata: Read-only\n"
+        "    (Metadata is what makes a repository resolvable at all; selecting\n"
+        "     Issues or Contents normally adds it, but it can be missed)\n"
+        "  - Account permissions need: Projects: Read and write\n"
+        "    (this one is account-level on user accounts, not per-repo)"
+    )
