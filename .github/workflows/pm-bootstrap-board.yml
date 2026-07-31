@@ -20,6 +20,10 @@ on:
         description: "Apply changes (unchecked = dry run)"
         type: boolean
         default: false
+      check_only:
+        description: "Only probe token permissions, change nothing"
+        type: boolean
+        default: false
 
 # contents:read is the minimum actions/checkout needs on a private repo.
 # Nothing else is granted: the default token cannot write Projects V2 at any
@@ -46,4 +50,4 @@ jobs:
           python -m pm.bootstrap_board \
             --owner "${{ inputs.owner }}" \
             --repo  "${{ inputs.repo }}" \
-            ${{ inputs.apply && '--apply' || '' }}
+            ${{ inputs.check_only && '--check' || (inputs.apply && '--apply' || '') }}

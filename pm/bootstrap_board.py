@@ -40,12 +40,92 @@ BUILTIN_FIELDS = {
 }
 
 
+def check_token(owner: str, repo: str) -> int:
+    """Probe each permission separately and report every failure in one pass.
+
+    Fixing a PAT one error at a time costs a round trip through the GitHub UI
+    per attempt, so this tests all three things the board needs and prints a
+    single verdict.
+    """
+    try:
+        gql = GraphQL.from_env()
+    except ProjectError as exc:
+        print(f"FAIL  token: {exc}")
+        return 2
+
+    repo_owner, repo_name = repo.split("/", 1)
+    results: list[tuple[bool, str, str]] = []
+
+    # 1. Is the token valid at all?
+    try:
+        who = gql("{ viewer { login } }")["viewer"]["login"]
+        results.append((True, "authentication", f"as {who}"))
+    except ProjectError as exc:
+        print(f"FAIL  authentication: {exc}")
+        return 1
+
+    # 2. Metadata read on the target repo.
+    try:
+        gql(
+            "query($o:String!,$n:String!){ repository(owner:$o,name:$n){ id } }",
+            o=repo_owner,
+            n=repo_name,
+        )
+        results.append((True, "repository access", f"{repo} is visible"))
+    except ProjectError:
+        results.append(
+            (
+                False,
+                "repository access",
+                f"{repo} NOT visible — add it under 'Repository access' "
+                "and grant 'Metadata: Read-only'",
+            )
+        )
+
+    # 3. Projects read. Account-level on user accounts, not per-repo.
+    try:
+        gql(
+            "query($l:String!){ repositoryOwner(login:$l){ ... on ProjectV2Owner "
+            "{ projectsV2(first:1){ totalCount } } } }",
+            l=owner,
+        )
+        results.append((True, "projects read", "ok"))
+    except ProjectError as exc:
+        results.append(
+            (
+                False,
+                "projects read",
+                f"{exc} — grant Account permission 'Projects: Read and write'",
+            )
+        )
+
+    for ok, name, detail in results:
+        print(f"{'ok  ' if ok else 'FAIL'}  {name}: {detail}")
+
+    failed = [r for r in results if not r[0]]
+    if failed:
+        print(f"\n{len(failed)} permission problem(s). Edit the token at")
+        print("github.com/settings/personal-access-tokens, then re-run this check.")
+        return 1
+
+    print("\nToken has everything the board needs.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="pm.bootstrap_board", description=__doc__)
     parser.add_argument("--owner", required=True, help="user or org login that owns the board")
     parser.add_argument("--repo", required=True, metavar="OWNER/NAME", help="repo to link")
     parser.add_argument("--apply", action="store_true", help="execute (default: dry-run)")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="test every token permission independently and report all failures at once",
+    )
     args = parser.parse_args(argv)
+
+    if args.check:
+        return check_token(args.owner, args.repo)
 
     try:
         config = load_project_config()
