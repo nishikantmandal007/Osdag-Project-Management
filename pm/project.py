@@ -66,12 +66,26 @@ class GraphQL:
         payload = response.json()
         if "errors" in payload:
             messages = "; ".join(e.get("message", str(e)) for e in payload["errors"])
+            # Name the operation that failed — a bare GraphQL message gives no
+            # clue which of a dozen calls tripped, and each retry is a CI run.
+            op = "?"
+            for line in query.strip().splitlines():
+                stripped = line.strip()
+                if stripped and not stripped.startswith(("query", "mutation", "#")):
+                    op = stripped.split("(")[0].split("{")[0].strip() or op
+                    break
             if "INSUFFICIENT_SCOPES" in response.text or "read:project" in messages:
                 raise ProjectError(
-                    f"token lacks Projects access: {messages}\n"
+                    f"[{op}] token lacks Projects access: {messages}\n"
                     "A fine-grained PAT needs account permission 'Projects: Read and write'."
                 )
-            raise ProjectError(messages)
+            if "not accessible by personal access token" in messages:
+                raise ProjectError(
+                    f"[{op}] {messages}\n"
+                    "Usually means account permission 'Projects' is Read-only rather than\n"
+                    "Read and write, or the operation targets projects the token does not own."
+                )
+            raise ProjectError(f"[{op}] {messages}")
         return payload["data"]
 
 
@@ -103,16 +117,34 @@ def owner_id(gql: GraphQL, login: str) -> tuple[str, bool]:
 
 
 def find_project(gql: GraphQL, login: str, title: str, is_org: bool) -> dict | None:
-    root = "organization" if is_org else "user"
-    data = gql(
-        f"""query($login:String!){{
-              {root}(login:$login){{
-                projectsV2(first:100){{ nodes{{ id number title }} }}
-              }}
-            }}""",
-        login=login,
-    )
-    for node in data[root]["projectsV2"]["nodes"]:
+    """Find a project by title.
+
+    For a user's own projects this goes through ``viewer``. A fine-grained PAT
+    is rejected on ``user(login:){projectsV2}`` with "Resource not accessible by
+    personal access token" even when it holds Projects read/write — the
+    ``viewer`` path is the one that works for the authenticated user.
+    """
+    if is_org:
+        data = gql(
+            """query($login:String!){
+                 organization(login:$login){
+                   projectsV2(first:100){ nodes{ id number title url } }
+                 }
+               }""",
+            login=login,
+        )
+        nodes = data["organization"]["projectsV2"]["nodes"]
+    else:
+        viewer = gql("{ viewer { login } }")["viewer"]["login"]
+        if viewer.lower() != login.lower():
+            raise ProjectError(
+                f"token authenticates as {viewer!r} but the board owner is {login!r}. "
+                "A fine-grained PAT can only reach its own user's projects."
+            )
+        data = gql("{ viewer { projectsV2(first:100){ nodes{ id number title url } } } }")
+        nodes = data["viewer"]["projectsV2"]["nodes"]
+
+    for node in nodes:
         if node["title"] == title:
             return node
     return None
