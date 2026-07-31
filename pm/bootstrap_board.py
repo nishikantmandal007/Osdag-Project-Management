@@ -194,38 +194,52 @@ def introspect_schema() -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
+    # A type reference nests NON_NULL/LIST wrappers arbitrarily deep. Ask for
+    # more levels than any real type uses and unwrap to the base named type.
+    type_ref = (
+        "kind name ofType{ kind name ofType{ kind name ofType{ kind name"
+        " ofType{ kind name ofType{ kind name } } } } }"
+    )
+
+    def unwrap(ty):
+        wraps = []
+        while ty and ty.get("ofType"):
+            wraps.append(ty["kind"])
+            ty = ty["ofType"]
+        return wraps, (ty or {}).get("name") or (ty or {}).get("kind")
+
+    def dump_input(tname: str) -> str | None:
+        """Print an input type's fields; return the iteration item type name."""
+        d = gql(
+            "query($n:String!){ __type(name:$n){ kind inputFields{ name type{"
+            + type_ref
+            + " } } } }",
+            n=tname,
+        )
+        t = d["__type"]
+        if not t:
+            print(f"\n{tname}: (no such type)")
+            return None
+        print(f"\n{tname}:")
+        item_type = None
+        for f in t["inputFields"]:
+            wraps, name = unwrap(f["type"])
+            required = f["type"]["kind"] == "NON_NULL"
+            print(f"  {'REQ ' if required else '    '}{f['name']}: {'/'.join(wraps) or 'scalar'} {name}")
+            if f["name"] == "iterations":
+                item_type = name
+        return item_type
+
     # 1. Which custom field types actually exist? Settles MULTI_SELECT.
     data = gql('{ __type(name:"ProjectV2CustomFieldType"){ enumValues{ name } } }')
     values = [v["name"] for v in data["__type"]["enumValues"]]
     print("ProjectV2CustomFieldType:", ", ".join(values))
     print("  MULTI_SELECT supported:", "MULTI_SELECT" in values)
 
-    # 2. Required members of the iteration config (the null it just rejected).
-    for tname in (
-        "ProjectV2IterationFieldConfigurationInput",
-        "ProjectV2IterationFieldIterationInput",
-    ):
-        d = gql(
-            'query($n:String!){ __type(name:$n){ inputFields{'
-            " name type{ kind name ofType{ kind name ofType{ kind name } } } } } }",
-            n=tname,
-        )
-        t = d["__type"]
-        if not t:
-            print(f"\n{tname}: (no such type)")
-            continue
-        print(f"\n{tname}:")
-        for f in t["inputFields"]:
-            ty = f["type"]
-            required = ty["kind"] == "NON_NULL"
-            # peel NON_NULL / LIST wrappers to the underlying name
-            core = ty
-            wraps = []
-            while core and core.get("ofType"):
-                wraps.append(core["kind"])
-                core = core["ofType"]
-            name = (core or {}).get("name") or (core or {}).get("kind")
-            print(f"  {'REQ ' if required else '    '}{f['name']}: {'/'.join(wraps) or ''} {name}")
+    # 2. Iteration config, then the actual list-item type it points at.
+    item = dump_input("ProjectV2IterationFieldConfigurationInput")
+    if item:
+        dump_input(item)
     return 0
 
 
