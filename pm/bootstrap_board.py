@@ -108,22 +108,30 @@ def check_token(owner: str, repo: str) -> int:
             detail = f"{repo} NOT visible — add it under 'Repository access' (Metadata: Read-only)"
         results.append((False, "repository access", detail))
 
-    # 3. Projects read. Account-level on user accounts, not per-repo.
+    # 3. Projects. Account-level on user accounts, NOT the similarly-named
+    #    repository-level 'Projects' permission.
+    #
+    #    Assert on the returned value, not merely on the absence of an
+    #    exception: an inline fragment that the token cannot satisfy comes back
+    #    as null with no error, which previously read as a false 'ok'.
+    projects_note = (
+        "Grant ACCOUNT permission 'Projects: Read and write'.\n"
+        "        Careful: there are two permissions called 'Projects'. The one\n"
+        "        under 'Repository permissions' is for old repo-scoped boards and\n"
+        "        does NOT work. You need the one under 'Account permissions',\n"
+        "        further down the token page."
+    )
     try:
-        gql(
-            "query($l:String!){ repositoryOwner(login:$l){ ... on ProjectV2Owner "
-            "{ projectsV2(first:1){ totalCount } } } }",
-            l=owner,
-        )
-        results.append((True, "projects read", "ok"))
-    except ProjectError as exc:
-        results.append(
-            (
-                False,
-                "projects read",
-                f"{exc} — grant Account permission 'Projects: Read and write'",
+        data = gql("{ viewer { projectsV2(first:1){ totalCount } } }")
+        node = (data.get("viewer") or {}).get("projectsV2")
+        if node is None:
+            results.append(
+                (False, "projects access", f"query returned null — token has no Projects access.\n        {projects_note}")
             )
-        )
+        else:
+            results.append((True, "projects access", f"can read projects ({node['totalCount']} existing)"))
+    except ProjectError as exc:
+        results.append((False, "projects access", f"{exc}\n        {projects_note}"))
 
     for ok, name, detail in results:
         print(f"{'ok  ' if ok else 'FAIL'}  {name}: {detail}")
