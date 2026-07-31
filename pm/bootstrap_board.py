@@ -73,14 +73,40 @@ def check_token(owner: str, repo: str) -> int:
         )
         results.append((True, "repository access", f"{repo} is visible"))
     except ProjectError:
-        results.append(
-            (
-                False,
-                "repository access",
-                f"{repo} NOT visible — add it under 'Repository access' "
-                "and grant 'Metadata: Read-only'",
+        # Distinguish "wrong repo selected" from "token cannot see ANY private
+        # repo". The second means the token was created in 'Public repositories'
+        # access mode, which cannot be fixed by adding a repository — the mode
+        # itself has to change.
+        try:
+            private = gql(
+                "{ viewer { repositories(first:1, privacy:PRIVATE, affiliations:[OWNER])"
+                " { totalCount } } }"
+            )["viewer"]["repositories"]["totalCount"]
+        except ProjectError:
+            private = -1
+
+        if private == 0:
+            detail = (
+                f"{repo} NOT visible, and this token can see ZERO private repos.\n"
+                "        That means its 'Repository access' is set to "
+                "'Public repositories'.\n"
+                "        Adding a repo will not help — change the mode to "
+                "'Only select repositories'\n"
+                "        (or 'All repositories'), then pick "
+                f"{repo_name}. Metadata: Read-only is the minimum."
             )
-        )
+        elif private > 0:
+            detail = (
+                f"{repo} NOT visible, though the token does see {private} other "
+                "private repo(s).\n"
+                f"        So the mode is right but {repo_name} is not in the "
+                "selected list — add it.\n"
+                "        If you edited a different token, update the "
+                "GH_PM_TOKEN secret too."
+            )
+        else:
+            detail = f"{repo} NOT visible — add it under 'Repository access' (Metadata: Read-only)"
+        results.append((False, "repository access", detail))
 
     # 3. Projects read. Account-level on user accounts, not per-repo.
     try:
