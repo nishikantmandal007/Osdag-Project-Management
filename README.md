@@ -41,6 +41,17 @@ tests/           pytest for the reconciler itself.
   `docs/pm/BOARD-SETUP.md`, not something the reconciler can provision or heal.
   Promotion is therefore not a single command, and the docs say so.
 
+## Start here
+
+**[`docs/pm/README.md`](docs/pm/README.md)** is the front door — the work-item
+hierarchy, label taxonomy, board views, and the SOPs for triage, sprints, epics,
+and operating the reconciler. If you're standing the board up on another repo,
+read **[`docs/pm/BOARD-SETUP.md`](docs/pm/BOARD-SETUP.md)** first: five board
+automations have no API and must be clicked by hand.
+
 ## Status
 
-Bootstrapping. See the tracker for what is built and what is not.
+Board live (project #3, 77 issues, 10 epics + 6 sub-epics seeded). Reconciler
+runs nightly, read-only. Docs and SOPs landed. Still open: the board-health
+check, the analytics bots, and governance sign-off
+([`docs/pm/PROMOTION.md`](docs/pm/PROMOTION.md)). See the tracker for detail.
