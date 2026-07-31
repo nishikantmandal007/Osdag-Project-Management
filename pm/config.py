@@ -143,3 +143,99 @@ def load_labels(path: Path | None = None) -> LabelConfig:
         protected=protected,
         migrations=dict(document.get("migrations", {})),
     )
+
+
+@dataclass(frozen=True)
+class SubEpic:
+    slug: str
+    title: str
+    areas: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Epic:
+    code: str
+    title: str
+    outcome: str
+    release: str
+    areas: tuple[str, ...] = ()
+    sub_epics: tuple[SubEpic, ...] = ()
+
+
+@dataclass(frozen=True)
+class EpicConfig:
+    marker_prefix: str
+    epics: tuple[Epic, ...]
+
+
+def load_epics(
+    path: Path | None = None, known_labels: set[str] | None = None
+) -> EpicConfig:
+    """Load `config/epics.yml`.
+
+    Beyond the schema, cross-checks that:
+
+    - epic codes are unique (they map 1:1 to the board's Epic field options),
+    - sub-epic slugs are unique within their parent,
+    - every referenced `area:` label actually exists (when `known_labels` is
+      supplied) — a typo'd area would otherwise create an unlabelled epic.
+    """
+    path = path or (CONFIG_DIR / "epics.yml")
+    if not path.is_file():
+        raise ConfigError(f"missing config: {path}")
+
+    try:
+        document = yaml.safe_load(path.read_text()) or {}
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"{path.name} is not valid YAML: {exc}") from exc
+
+    _validate(document, "epics.schema.json")
+
+    epics: list[Epic] = []
+    problems: list[str] = []
+    seen_codes: set[str] = set()
+
+    for entry in document["epics"]:
+        code = entry["code"]
+        if code in seen_codes:
+            problems.append(f"duplicate epic code: {code!r}")
+        seen_codes.add(code)
+
+        subs: list[SubEpic] = []
+        seen_slugs: set[str] = set()
+        for sub in entry.get("sub_epics", []):
+            if sub["slug"] in seen_slugs:
+                problems.append(f"{code}: duplicate sub-epic slug {sub['slug']!r}")
+            seen_slugs.add(sub["slug"])
+            subs.append(
+                SubEpic(slug=sub["slug"], title=sub["title"], areas=tuple(sub.get("areas", [])))
+            )
+
+        epics.append(
+            Epic(
+                code=code,
+                title=entry["title"],
+                outcome=" ".join(entry["outcome"].split()),
+                release=entry["release"],
+                areas=tuple(entry.get("areas", [])),
+                sub_epics=tuple(subs),
+            )
+        )
+
+    if known_labels is not None:
+        for epic in epics:
+            for area in epic.areas:
+                if area not in known_labels:
+                    problems.append(f"{epic.code}: unknown area label {area!r}")
+            for sub in epic.sub_epics:
+                for area in sub.areas:
+                    if area not in known_labels:
+                        problems.append(f"{epic.code}/{sub.slug}: unknown area label {area!r}")
+
+    if problems:
+        raise ConfigError(f"{path.name} is inconsistent:\n" + "\n".join(f"  {p}" for p in problems))
+
+    return EpicConfig(
+        marker_prefix=document.get("marker_prefix", "epic"),
+        epics=tuple(epics),
+    )

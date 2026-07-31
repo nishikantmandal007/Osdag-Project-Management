@@ -136,3 +136,47 @@ class Client:
 
     # No delete_label(). Intentionally absent — deleting a label detaches it
     # from every issue that carried it, unrecoverably. Extras are reported.
+
+    # ── issues ─────────────────────────────────────────────────────────────────
+
+    def list_issues(self, state: str = "all") -> list[dict]:
+        """Every issue in the repo. Filters out pull requests, which the Issues
+        API returns alongside issues (they carry a ``pull_request`` key)."""
+        raw = self._paginate(f"/repos/{self.repo}/issues?state={state}&per_page=100")
+        return [i for i in raw if "pull_request" not in i]
+
+    def create_issue(
+        self, title: str, body: str, labels: list[str] | None = None
+    ) -> dict:
+        payload: dict = {"title": title, "body": body}
+        if labels:
+            payload["labels"] = labels
+        return self._request("POST", f"/repos/{self.repo}/issues", json=payload).json()
+
+    # ── sub-issues ─────────────────────────────────────────────────────────────
+    #
+    # Native parent/child links. `gh issue create --parent` needs gh 2.94.0;
+    # the REST endpoint works everywhere and takes the child's numeric id (NOT
+    # its number). Idempotent server-side: re-adding an existing child is a
+    # 4xx we swallow, so the reconciler can re-run.
+
+    def list_sub_issues(self, parent_number: int) -> list[dict]:
+        return self._paginate(
+            f"/repos/{self.repo}/issues/{parent_number}/sub_issues?per_page=100"
+        )
+
+    def add_sub_issue(self, parent_number: int, child_id: int) -> bool:
+        """Attach ``child_id`` under ``parent_number``. Returns False if the
+        link already existed (a no-op), True if newly created."""
+        try:
+            self._request(
+                "POST",
+                f"/repos/{self.repo}/issues/{parent_number}/sub_issues",
+                json={"sub_issue_id": child_id},
+            )
+            return True
+        except GitHubError as exc:
+            # Already-linked comes back 422; treat as satisfied, not an error.
+            if "422" in str(exc):
+                return False
+            raise

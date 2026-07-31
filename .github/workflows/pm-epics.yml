@@ -1,0 +1,42 @@
+name: Epics
+
+# Manual only. Creates the L2 epic issues (and E1's sub-epics) from
+# config/epics.yml. Idempotent — a hidden marker in each body means re-running
+# creates nothing twice, so this is safe to dispatch repeatedly.
+#
+# Runs in Actions so GH_PM_TOKEN never leaves it. GITHUB_TOKEN could create
+# issues, but sub-issue linking and the shared board both want the PAT anyway.
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Repository to file epics in (OWNER/NAME)"
+        required: true
+        default: nishikantmandal007/osdagbridge-pm
+      apply:
+        description: "Apply changes (unchecked = dry run)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  epics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - name: Reconcile epics
+        env:
+          GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
+        run: |
+          python -m pm.epics \
+            --repo "${{ inputs.repo }}" \
+            ${{ inputs.apply && '--apply' || '' }}
