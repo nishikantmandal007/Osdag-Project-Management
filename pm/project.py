@@ -85,16 +85,21 @@ def load_project_config(path: Path | None = None) -> dict:
 # ── lookups ──────────────────────────────────────────────────────────────────
 
 def owner_id(gql: GraphQL, login: str) -> tuple[str, bool]:
-    """Return (node id, is_organization) for a user or org login."""
+    """Return (node id, is_organization) for a user or org login.
+
+    Uses ``repositoryOwner``, which resolves either kind. Querying ``user`` and
+    ``organization`` in one document looks tidier but makes GraphQL emit an
+    error for whichever branch does not resolve, and a partial-error response is
+    indistinguishable from a real failure.
+    """
     data = gql(
-        "query($login:String!){ user(login:$login){id} organization(login:$login){id} }",
+        "query($login:String!){ repositoryOwner(login:$login){ id __typename } }",
         login=login,
     )
-    if data.get("organization"):
-        return data["organization"]["id"], True
-    if data.get("user"):
-        return data["user"]["id"], False
-    raise ProjectError(f"no such owner: {login}")
+    owner = data.get("repositoryOwner")
+    if not owner:
+        raise ProjectError(f"no such user or organization: {login}")
+    return owner["id"], owner["__typename"] == "Organization"
 
 
 def find_project(gql: GraphQL, login: str, title: str, is_org: bool) -> dict | None:
