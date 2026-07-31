@@ -1,0 +1,37 @@
+# Seed config — mirror the source tracker's open issues into this repo.
+#
+# The seeder reads a COMMITTED snapshot (`snapshot`), not the live source repo.
+# That is deliberate: a fine-grained PAT scoped to this account cannot be relied
+# on to read another user's repo, and a committed snapshot makes the whole seed
+# reviewable in a diff and reproducible. Refresh it read-only with:
+#
+#   gh api -X GET "repos/<source_repo>/issues" -f state=open -f per_page=100 \
+#     --paginate --jq '[.[] | select(.pull_request|not) | {number,title,body,
+#     html_url,created_at,user:.user.login,labels:[.labels[].name]}]' \
+#     > config/seed-source.json
+#
+# Idempotent: each mirrored issue ends with `<!-- src:<source_repo>#N -->`, so a
+# re-run recreates nothing. Never closes or edits source; strictly one-way.
+
+version: 1
+source_repo: "Aditya-Donde/OsdagBridge"
+snapshot: "config/seed-source.json"
+
+# Source label -> target label(s). Every target must already exist
+# (config/labels.yml); the loader rejects an unknown one. An empty list means
+# "no equivalent yet" (the status:/release: namespaces are staged for v2) — the
+# issue is still mirrored, just without that tag, and the gap is reported.
+label_map:
+  "Girder Results":     [area:girder-results]
+  "Generate Report":    [area:generate-report]
+  "Generate Results":   [area:generate-results]
+  "Analysis Results":   [area:analysis-results]
+  "Transverse Member":  [area:transverse-member]
+  "3D CAD":             [area:3d-cad]
+  "Initial CAD":        [area:initial-cad]
+  "Output Dock":        [area:output-dock]
+  "Non-Critical Bug":   [sev:S3-minor]
+  "Suggestion":         [type:feature]
+  "enhancement":        [type:feature]
+  "Check & Close":      []          # status:check-and-close — v2
+  "Future development": []          # release:future — v2

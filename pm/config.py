@@ -239,3 +239,70 @@ def load_epics(
         marker_prefix=document.get("marker_prefix", "epic"),
         epics=tuple(epics),
     )
+
+
+@dataclass(frozen=True)
+class SeedConfig:
+    source_repo: str
+    snapshot: Path
+    label_map: dict[str, tuple[str, ...]]
+
+    def map_labels(self, source_labels: list[str]) -> tuple[list[str], list[str]]:
+        """Translate one issue's source labels to target labels.
+
+        Returns (mapped_targets, unmapped_sources). A source label present in
+        the map with an empty list is treated as intentionally-unmapped and does
+        NOT appear in unmapped_sources; a source label absent from the map does.
+        """
+        targets: list[str] = []
+        unmapped: list[str] = []
+        for src in source_labels:
+            if src in self.label_map:
+                targets.extend(self.label_map[src])
+            else:
+                unmapped.append(src)
+        # de-dupe, preserve order
+        seen: set[str] = set()
+        deduped = [t for t in targets if not (t in seen or seen.add(t))]
+        return deduped, unmapped
+
+
+def load_seed(
+    path: Path | None = None, known_labels: set[str] | None = None
+) -> SeedConfig:
+    """Load `config/seed.yml`.
+
+    Beyond the schema, checks every mapped *target* label exists (when
+    `known_labels` is given) and that the snapshot file is present — both would
+    otherwise fail deep inside a live seeding run.
+    """
+    path = path or (CONFIG_DIR / "seed.yml")
+    if not path.is_file():
+        raise ConfigError(f"missing config: {path}")
+
+    try:
+        document = yaml.safe_load(path.read_text()) or {}
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"{path.name} is not valid YAML: {exc}") from exc
+
+    _validate(document, "seed.schema.json")
+
+    label_map = {k: tuple(v) for k, v in document["label_map"].items()}
+    snapshot = (REPO_ROOT / document["snapshot"]).resolve()
+
+    problems: list[str] = []
+    if not snapshot.is_file():
+        problems.append(f"snapshot not found: {snapshot}")
+    if known_labels is not None:
+        for src, targets in label_map.items():
+            for tgt in targets:
+                if tgt not in known_labels:
+                    problems.append(f"label_map[{src!r}] -> unknown target label {tgt!r}")
+    if problems:
+        raise ConfigError(f"{path.name} is inconsistent:\n" + "\n".join(f"  {p}" for p in problems))
+
+    return SeedConfig(
+        source_repo=document["source_repo"],
+        snapshot=snapshot,
+        label_map=label_map,
+    )
