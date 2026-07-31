@@ -18,6 +18,7 @@ import sys
 from .project import (
     GraphQL,
     ProjectError,
+    add_item,
     create_field,
     create_project,
     create_view,
@@ -183,6 +184,64 @@ def check_token(owner: str, repo: str) -> int:
     return 0
 
 
+def populate_board(owner: str, repo: str, apply: bool) -> int:
+    """Add every open issue in the repo to the board.
+
+    The built-in 'Auto-add' workflow only catches issues opened after it is
+    enabled; the epics and the seeded backlog already existed, so they need this
+    one-time backfill. Idempotent — ``addProjectV2ItemById`` returns the
+    existing item for an issue already on the board.
+
+    Deliberately does NOT set Status/Sprint. New items land with no Status (the
+    'No Status' column) and no Sprint, which is correct: a freshly-seeded
+    backlog is not sprint-planned. That is also why the 'Current Sprint' view is
+    empty — nothing is in a sprint yet, by design.
+    """
+    from .github import Client, GitHubError
+
+    try:
+        gql = GraphQL.from_env()
+        config = load_project_config()
+    except ProjectError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    title = config["project"]["title"]
+    try:
+        _, is_org = owner_id(gql, owner)
+        project = find_project(gql, owner, title, is_org)
+        if not project:
+            print(f"error: no project titled {title!r} — run --apply first", file=sys.stderr)
+            return 1
+        pid = project["id"]
+
+        client = Client.from_env(repo)
+        issues = client.list_issues(state="open")
+    except (ProjectError, GitHubError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"project: #{project['number']} {title!r}")
+    print(f"issues : {len(issues)} open in {repo}")
+    print(f"mode   : {'APPLY' if apply else 'dry-run'}\n")
+
+    if not apply:
+        print(f"would add {len(issues)} issue(s) to the board (idempotent)")
+        print("\ndry run; nothing changed. Re-run with --apply")
+        return 1
+
+    added = 0
+    for issue in issues:
+        add_item(gql, pid, issue["node_id"])
+        added += 1
+        if added % 20 == 0:
+            print(f"  added {added}/{len(issues)}")
+    print(f"\ndone: {added} issue(s) on the board (duplicates were no-ops)")
+    print("Epic Roadmap and Backlog Grooming now populate; Current Sprint stays")
+    print("empty until issues are assigned to a sprint.")
+    return 0
+
+
 def introspect_schema() -> int:
     """Print the live shape of the two things this board bends on.
 
@@ -260,6 +319,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="dump the exact field-type enum and iteration input shape, then exit",
     )
+    parser.add_argument(
+        "--populate",
+        action="store_true",
+        help="backfill: add every open repo issue to the board (idempotent)",
+    )
     args = parser.parse_args(argv)
 
     if args.check:
@@ -267,6 +331,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.introspect:
         return introspect_schema()
+
+    if args.populate:
+        return populate_board(args.owner, args.repo, args.apply)
 
     try:
         config = load_project_config()

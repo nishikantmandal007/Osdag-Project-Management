@@ -320,6 +320,26 @@ def link_repository(gql: GraphQL, project_id: str, repo_id: str) -> None:
     )
 
 
+def add_item(gql: GraphQL, project_id: str, content_node_id: str) -> str:
+    """Add an issue (by its node id) to the project. Returns the item id.
+
+    Idempotent server-side: adding an issue already on the board returns the
+    existing item rather than creating a duplicate, so a re-run is safe. This is
+    the backfill the built-in 'Auto-add' workflow does NOT do — that one only
+    catches issues created after it is switched on.
+    """
+    data = gql(
+        """mutation($projectId:ID!,$contentId:ID!){
+             addProjectV2ItemById(input:{projectId:$projectId,contentId:$contentId}){
+               item{ id }
+             }
+           }""",
+        projectId=project_id,
+        contentId=content_node_id,
+    )
+    return data["addProjectV2ItemById"]["item"]["id"]
+
+
 def repository_id(gql: GraphQL, owner: str, name: str) -> str:
     try:
         data = gql(

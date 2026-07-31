@@ -28,6 +28,10 @@ on:
         description: "Dump live field-type enum + iteration input shape, change nothing"
         type: boolean
         default: false
+      populate:
+        description: "Backfill: add every open repo issue to the board (needs apply)"
+        type: boolean
+        default: false
 
 # contents:read is the minimum actions/checkout needs on a private repo.
 # Nothing else is granted: the default token cannot write Projects V2 at any
@@ -54,4 +58,4 @@ jobs:
           python -m pm.bootstrap_board \
             --owner "${{ inputs.owner }}" \
             --repo  "${{ inputs.repo }}" \
-            ${{ inputs.introspect && '--introspect' || (inputs.check_only && '--check' || (inputs.apply && '--apply' || '')) }}
+            ${{ inputs.introspect && '--introspect' || (inputs.check_only && '--check' || (inputs.populate && (inputs.apply && '--populate --apply' || '--populate') || (inputs.apply && '--apply' || ''))) }}
