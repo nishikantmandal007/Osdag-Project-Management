@@ -37,6 +37,8 @@ BUILTIN_FIELDS = {
     "Title", "Assignees", "Status", "Labels", "Linked pull requests",
     "Milestone", "Repository", "Reviewers", "Parent issue",
     "Sub-issues progress", "Issue Type",
+    # Read-only timestamp fields GitHub adds to every project.
+    "Closed", "Created", "Updated",
 }
 
 
