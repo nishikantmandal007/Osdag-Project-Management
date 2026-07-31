@@ -6,9 +6,15 @@ venv/
 .ruff_cache/
 *.egg-info/
 
-# Reconciler run artifacts — regenerated every run, never committed.
+# Reconciler run artifacts — regenerated every run, uploaded as CI artifacts.
 .drift-report.json
-.heartbeat
+.health-report.json
+
+# .heartbeat is the ONE exception: it is committed. Its whole job is to make a
+# silently-dead nightly detectable — if the scheduled run stops, the committed
+# timestamp goes stale and the next run's health check alarms on it. A file that
+# is never committed cannot do that. The schedule job commits it (see
+# pm-reconcile.yml). Locally it will show dirty after a run; leave it to the bot.
 
 # Never commit a token. The reconciler reads it from the GH_PM_TOKEN secret.
 .env

@@ -22,8 +22,8 @@ on:
       - ".github/workflows/pm-reconcile.yml"
 
 permissions:
-  contents: read
-  issues: write     # to open/update the drift issue
+  contents: write   # to commit the heartbeat back (schedule only)
+  issues: write     # to open/update the drift and health issues
 
 jobs:
   reconcile:
@@ -44,6 +44,19 @@ jobs:
           pip install pytest
           pytest -q tests/
 
+      # Runs BEFORE the reconciler, on purpose: the heartbeat age must reflect
+      # the PREVIOUS run. Reading a just-overwritten heartbeat would always look
+      # fresh, and the liveness check — the one that catches a silently dead
+      # reconciler — would never fire. Never gates the build.
+      - name: Board health
+        id: health
+        continue-on-error: true
+        env:
+          GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
+        run: |
+          python -m pm.health --repo "${{ github.repository }}" | tee health.log
+          echo "healthy=$(jq -r '.healthy' .health-report.json)" >> "$GITHUB_OUTPUT"
+
       - name: Reconcile labels
         id: reconcile
         continue-on-error: true
@@ -56,15 +69,17 @@ jobs:
             | tee reconcile.log
           echo "exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload drift report
+      - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: drift-report
+          name: reconcile-reports
           path: |
             .drift-report.json
+            .health-report.json
             .heartbeat
             reconcile.log
+            health.log
           if-no-files-found: warn
 
       # Scheduled runs only. A PR already shows the log inline, and a human
@@ -101,6 +116,69 @@ jobs:
             gh issue create -R "$REPO" --title "$TITLE" --body-file body.md \
               --label "type:chore,area:ci-cd"
           fi
+
+      # Self-healing: one "Board health" issue, edited in place while unhealthy
+      # and closed automatically when the board recovers. Editing rather than
+      # commenting keeps it a single current snapshot, not a growing thread.
+      - name: Open, update or resolve health issue
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HEALTHY: ${{ steps.health.outputs.healthy }}
+        run: |
+          TITLE="Board health"
+          EXISTING=$(gh issue list -R "$REPO" --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+
+          if [ "$HEALTHY" = "true" ]; then
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" -R "$REPO" \
+                --body "Board healthy again as of [this run]($RUN_URL) — closing."
+              gh issue close "$EXISTING" -R "$REPO"
+            fi
+            exit 0
+          fi
+
+          {
+            echo "The nightly board-health check flagged items the board is not tracking well."
+            echo
+            echo "Informational — nothing was changed and the build was not failed."
+            echo "Liveness findings mean the reconciler itself may have stopped running;"
+            echo "hygiene findings are stale, un-triaged issues (see docs/pm/SOP-01)."
+            echo
+            echo '```'
+            cat health.log
+            echo '```'
+            echo
+            echo "[Run log]($RUN_URL)"
+          } > health-body.md
+
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" -R "$REPO" --body-file health-body.md
+          else
+            gh issue create -R "$REPO" --title "$TITLE" --body-file health-body.md \
+              --label "type:chore,area:ci-cd"
+          fi
+
+      # A committed heartbeat is what makes "the nightly stopped" detectable: if
+      # this job never runs, the timestamp in git goes stale and the next
+      # successful run's health check alarms. always() so even a drift-failed run
+      # still records that the automation executed — liveness and drift are
+      # independent signals. There is no push trigger, so this cannot loop.
+      - name: Persist heartbeat
+        if: always() && github.event_name == 'schedule'
+        run: |
+          git config user.name  "pm-reconciler[bot]"
+          git config user.email "pm-reconciler@users.noreply.github.com"
+          git add .heartbeat
+          if git diff --cached --quiet; then
+            echo "heartbeat unchanged; nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore: reconciler heartbeat [skip ci]"
+          git push
 
       - name: Fail if drift
         if: steps.reconcile.outputs.exit != '0'

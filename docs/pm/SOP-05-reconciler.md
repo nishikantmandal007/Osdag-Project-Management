@@ -46,13 +46,33 @@ Untrusted content (issue titles, logs) is never interpolated into a `run:` block
 — the drift log is read from a file. Keep it that way: this repo is public and
 issue titles are attacker-controlled.
 
-## The heartbeat
+## The heartbeat and health check
 
-Each run writes `.heartbeat` (a UTC timestamp) and `.drift-report.json`. **A
-stale heartbeat is itself drift** — it's how a *silently dead* reconciler becomes
-visible without anyone thinking to open the Actions tab. The board-health check
-that alarms on a stale heartbeat and flags >30-day orphaned issues is T11, still
-to be built.
+Each run writes `.heartbeat` (a UTC timestamp), and the scheduled job **commits
+it back to `main`**. That commit is the point: **a stale committed heartbeat is
+itself drift** — it's how a *silently dead* reconciler becomes visible without
+anyone thinking to open the Actions tab. If the nightly stops firing, the
+timestamp in git stops advancing, and the next run that does fire alarms on it.
+`.heartbeat` is the one run artifact that is tracked in git for exactly this
+reason; the reports (`.drift-report.json`, `.health-report.json`) stay ignored
+and are uploaded as CI artifacts instead.
+
+The board-**health** check (`python -m pm.health --repo O/N`) runs first in the
+nightly, *before* the heartbeat is overwritten, and produces two signals:
+
+- **Liveness** — the heartbeat is older than one nightly cycle (36h) → the
+  reconciler itself may be dead. This is the finding that watches the watcher.
+- **Hygiene** — issues open past 30 days with no owner, no type/area, or a bug
+  with no severity. Only *old* issues, so day-old triage items aren't nagged.
+
+Findings drive a single self-healing **"Board health"** issue: edited in place
+while unhealthy, **closed automatically** when the board recovers. It never
+fails the build — stale issues are normal, not a CI error.
+
+> **Documented limitation:** epic membership is a board *field*, not a label,
+> until the v2 `epic:` namespace ships, so "no epic" cannot be seen from issue
+> metadata and is not checked. Claiming to check it would false-positive on every
+> issue. One line of `pm/health.py` enables it once `epic:` labels exist.
 
 ## Applying for real
 

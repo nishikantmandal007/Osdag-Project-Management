@@ -52,6 +52,7 @@ automations have no API and must be clicked by hand.
 ## Status
 
 Board live (project #3, 77 issues, 10 epics + 6 sub-epics seeded). Reconciler
-runs nightly, read-only. Docs and SOPs landed. Still open: the board-health
-check, the analytics bots, and governance sign-off
+runs nightly, read-only, with a board-health check (liveness heartbeat + stale
+un-triaged issues) that self-heals its own "Board health" issue. Docs and SOPs
+landed. Still open: the analytics bots and governance sign-off
 ([`docs/pm/PROMOTION.md`](docs/pm/PROMOTION.md)). See the tracker for detail.
