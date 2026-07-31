@@ -133,6 +133,41 @@ def check_token(owner: str, repo: str) -> int:
     except ProjectError as exc:
         results.append((False, "projects access", f"{exc}\n        {projects_note}"))
 
+    # 3b. Node-probe. `totalCount` can succeed while enumerating `nodes` is
+    #     rejected with "Resource not accessible by personal access token" —
+    #     that is a field-level denial, not a read/write one. Walk from the
+    #     cheapest selection to the full one so the FIRST failure names the
+    #     exact field the token cannot read, in a single CI round trip.
+    probes = [
+        ("nodes{ id }",                 "{ viewer { projectsV2(first:100){ nodes{ id } } } }"),
+        ("nodes{ id number }",          "{ viewer { projectsV2(first:100){ nodes{ id number } } } }"),
+        ("nodes{ id number title }",    "{ viewer { projectsV2(first:100){ nodes{ id number title } } } }"),
+        ("nodes{ id number title url }","{ viewer { projectsV2(first:100){ nodes{ id number title url } } } }"),
+    ]
+    probe_note = (
+        "totalCount works but enumerating project nodes is denied. This is a\n"
+        "        field-level denial. Two known causes:\n"
+        "          - the token was minted before the account 'Projects' permission\n"
+        "            was set to Read and write — regenerate it (a saved token does\n"
+        "            NOT pick up a later permission change), OR\n"
+        "          - the 'url' field specifically requires the write scope; the\n"
+        "            code now avoids it and reads only id/number/title."
+    )
+    first_fail = None
+    for shape, q in probes:
+        try:
+            gql(q)
+        except ProjectError as exc:
+            first_fail = (shape, str(exc))
+            break
+    if first_fail is None:
+        results.append((True, "projects node read", "can enumerate project nodes (id/number/title/url)"))
+    else:
+        shape, msg = first_fail
+        results.append(
+            (False, "projects node read", f"first denied at `{shape}`: {msg}\n        {probe_note}")
+        )
+
     for ok, name, detail in results:
         print(f"{'ok  ' if ok else 'FAIL'}  {name}: {detail}")
 

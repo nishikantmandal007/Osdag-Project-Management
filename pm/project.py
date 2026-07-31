@@ -119,12 +119,18 @@ def find_project(gql: GraphQL, login: str, title: str, is_org: bool) -> dict | N
     is rejected on ``user(login:){projectsV2}`` with "Resource not accessible by
     personal access token" even when it holds Projects read/write — the
     ``viewer`` path is the one that works for the authenticated user.
+
+    Deliberately selects only ``id number title`` — not ``url``. Enumerating
+    nodes with ``url`` was rejected "Resource not accessible by personal access
+    token" while ``totalCount`` succeeded, a field-level denial on ``url``. The
+    caller matches on ``title`` and never needs the url for an existing project
+    (the final print falls back to ``(existing)``), so dropping it is free.
     """
     if is_org:
         data = gql(
             """query($login:String!){
                  organization(login:$login){
-                   projectsV2(first:100){ nodes{ id number title url } }
+                   projectsV2(first:100){ nodes{ id number title } }
                  }
                }""",
             login=login,
@@ -137,7 +143,7 @@ def find_project(gql: GraphQL, login: str, title: str, is_org: bool) -> dict | N
                 f"token authenticates as {viewer!r} but the board owner is {login!r}. "
                 "A fine-grained PAT can only reach its own user's projects."
             )
-        data = gql("{ viewer { projectsV2(first:100){ nodes{ id number title url } } } }")
+        data = gql("{ viewer { projectsV2(first:100){ nodes{ id number title } } } }")
         nodes = data["viewer"]["projectsV2"]["nodes"]
 
     for node in nodes:
