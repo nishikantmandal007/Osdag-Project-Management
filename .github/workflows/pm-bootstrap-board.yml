@@ -21,7 +21,11 @@ on:
         type: boolean
         default: false
 
-permissions: {}   # everything goes through GH_PM_TOKEN; the default token cannot write Projects V2
+# contents:read is the minimum actions/checkout needs on a private repo.
+# Nothing else is granted: the default token cannot write Projects V2 at any
+# permission level, so the board work goes through GH_PM_TOKEN.
+permissions:
+  contents: read
 
 jobs:
   bootstrap:
