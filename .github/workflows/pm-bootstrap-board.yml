@@ -1,0 +1,45 @@
+name: Bootstrap board
+
+# Manual only. Creates the Projects V2 board, its fields and its views from
+# config/project.yml. Idempotent — re-running is a no-op, which is what makes
+# promotion to osdag-admin the same command with different inputs.
+#
+# Runs here rather than locally so GH_PM_TOKEN never leaves Actions.
+on:
+  workflow_dispatch:
+    inputs:
+      owner:
+        description: "Login that owns the board"
+        required: true
+        default: nishikantmandal007
+      repo:
+        description: "Repository to link (OWNER/NAME)"
+        required: true
+        default: nishikantmandal007/osdagbridge-pm
+      apply:
+        description: "Apply changes (unchecked = dry run)"
+        type: boolean
+        default: false
+
+permissions: {}   # everything goes through GH_PM_TOKEN; the default token cannot write Projects V2
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - name: Bootstrap board
+        env:
+          GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
+        run: |
+          python -m pm.bootstrap_board \
+            --owner "${{ inputs.owner }}" \
+            --repo  "${{ inputs.repo }}" \
+            ${{ inputs.apply && '--apply' || '' }}

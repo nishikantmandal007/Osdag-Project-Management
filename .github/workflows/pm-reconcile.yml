@@ -1,0 +1,109 @@
+name: Reconcile
+
+# Nightly drift check. Reports in dry-run; only the manual dispatch may apply.
+# A scheduled run that silently fixes things is how a board starts diverging
+# from what people think it is, so the automatic path is read-only.
+#
+# This repo is deliberately NOT a fork — GitHub disables scheduled workflows in
+# forks, and this job is the reason the PM system does not live in the code fork.
+on:
+  schedule:
+    - cron: "17 2 * * *"   # 02:17 UTC daily; off the hour to dodge scheduler congestion
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply changes (unchecked = report only)"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - "config/**"
+      - "pm/**"
+      - ".github/workflows/pm-reconcile.yml"
+
+permissions:
+  contents: read
+  issues: write     # to open/update the drift issue
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      # Config is validated before any network call, so a bad PR fails here
+      # rather than halfway through mutating a live tracker.
+      - name: Unit tests
+        run: |
+          pip install pytest
+          pytest -q tests/
+
+      - name: Reconcile labels
+        id: reconcile
+        continue-on-error: true
+        env:
+          GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
+        run: |
+          python -m pm.reconcile \
+            --repo "${{ github.repository }}" \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.apply) && '--apply' || '--dry-run' }} \
+            | tee reconcile.log
+          echo "exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report
+          path: |
+            .drift-report.json
+            .heartbeat
+            reconcile.log
+          if-no-files-found: warn
+
+      # Scheduled runs only. A PR already shows the log inline, and a human
+      # running --apply is watching the output.
+      - name: Open or update drift issue
+        if: github.event_name == 'schedule' && steps.reconcile.outputs.exit != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Never interpolate untrusted content into `run:`; the log is read
+          # from a file, not from an expression.
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITLE="Board drift detected"
+          {
+            echo "The nightly reconciler found the board no longer matches \`config/\`."
+            echo
+            echo "Nothing was changed — the scheduled run is read-only, and the reconciler"
+            echo "never deletes. Review, then either update \`config/\` or run the"
+            echo "**Reconcile** workflow with *Apply* checked."
+            echo
+            echo '```'
+            cat reconcile.log
+            echo '```'
+            echo
+            echo "[Run log]($RUN_URL)"
+          } > body.md
+
+          EXISTING=$(gh issue list -R "$REPO" --state open --search "$TITLE in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" -R "$REPO" --body-file body.md
+          else
+            gh issue create -R "$REPO" --title "$TITLE" --body-file body.md \
+              --label "type:chore,area:ci-cd"
+          fi
+
+      - name: Fail if drift
+        if: steps.reconcile.outputs.exit != '0'
+        run: |
+          echo "::error::reconciler reported drift or failed; see the log above"
+          exit 1
