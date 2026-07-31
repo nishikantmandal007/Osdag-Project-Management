@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field as dc_field
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import requests
@@ -208,6 +209,37 @@ def create_project(gql: GraphQL, owner: str, title: str, repo_id: str | None = N
     return data["createProjectV2"]["projectV2"]
 
 
+def _iteration_config(spec: dict) -> dict:
+    """Build a ProjectV2IterationFieldConfigurationInput for an ITERATION field.
+
+    startDate/duration/title are all non-null on each iteration, and the list
+    itself must be non-empty, so we materialise a run of consecutive sprints
+    from `start_date`. `count` sprints of `duration_days` each cover the near
+    horizon; the board owner extends it in the UI.
+    """
+    start_raw = spec["start_date"]
+    if isinstance(start_raw, (date, datetime)):
+        start = start_raw if isinstance(start_raw, date) and not isinstance(start_raw, datetime) else start_raw.date()
+    else:
+        start = datetime.strptime(str(start_raw), "%Y-%m-%d").date()
+    duration = int(spec.get("duration_days", 14))
+    count = int(spec.get("count", 8))
+
+    iterations = []
+    day = start
+    for n in range(1, count + 1):
+        iterations.append(
+            {"startDate": day.isoformat(), "duration": duration, "title": f"Sprint {n}"}
+        )
+        day = day + timedelta(days=duration)
+
+    return {
+        "startDate": start.isoformat(),
+        "duration": duration,
+        "iterations": iterations,
+    }
+
+
 def create_field(gql: GraphQL, project_id: str, spec: dict) -> dict:
     """Create one field. Handles all five dataTypes."""
     dtype = spec["type"]
@@ -230,10 +262,11 @@ def create_field(gql: GraphQL, project_id: str, spec: dict) -> dict:
         extra = f", ${key}:{arg}"
         inner = f", {key}:${key}"
     elif dtype == "ITERATION":
-        variables["iterationConfiguration"] = {
-            "startDate": str(spec["start_date"]),
-            "duration": int(spec.get("duration_days", 14)),
-        }
+        # The list item is ProjectV2Iteration, and startDate, duration AND
+        # title are each non-null (confirmed by --introspect). An empty list is
+        # rejected too, so seed a run of consecutive sprints up front; users add
+        # more from the UI later.
+        variables["iterationConfiguration"] = _iteration_config(spec)
         extra = ", $iterationConfiguration:ProjectV2IterationFieldConfigurationInput"
         inner = ", iterationConfiguration:$iterationConfiguration"
     else:
