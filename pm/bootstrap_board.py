@@ -181,6 +181,54 @@ def check_token(owner: str, repo: str) -> int:
     return 0
 
 
+def introspect_schema() -> int:
+    """Print the live shape of the two things this board bends on.
+
+    ``gh`` documents its own field-create limits, not the API's; and the
+    iteration input's required members are not in any doc I trust. Read them
+    straight from the running schema so the fix is against reality, not memory.
+    """
+    try:
+        gql = GraphQL.from_env()
+    except ProjectError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    # 1. Which custom field types actually exist? Settles MULTI_SELECT.
+    data = gql('{ __type(name:"ProjectV2CustomFieldType"){ enumValues{ name } } }')
+    values = [v["name"] for v in data["__type"]["enumValues"]]
+    print("ProjectV2CustomFieldType:", ", ".join(values))
+    print("  MULTI_SELECT supported:", "MULTI_SELECT" in values)
+
+    # 2. Required members of the iteration config (the null it just rejected).
+    for tname in (
+        "ProjectV2IterationFieldConfigurationInput",
+        "ProjectV2IterationFieldIterationInput",
+    ):
+        d = gql(
+            'query($n:String!){ __type(name:$n){ inputFields{'
+            " name type{ kind name ofType{ kind name ofType{ kind name } } } } } }",
+            n=tname,
+        )
+        t = d["__type"]
+        if not t:
+            print(f"\n{tname}: (no such type)")
+            continue
+        print(f"\n{tname}:")
+        for f in t["inputFields"]:
+            ty = f["type"]
+            required = ty["kind"] == "NON_NULL"
+            # peel NON_NULL / LIST wrappers to the underlying name
+            core = ty
+            wraps = []
+            while core and core.get("ofType"):
+                wraps.append(core["kind"])
+                core = core["ofType"]
+            name = (core or {}).get("name") or (core or {}).get("kind")
+            print(f"  {'REQ ' if required else '    '}{f['name']}: {'/'.join(wraps) or ''} {name}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="pm.bootstrap_board", description=__doc__)
     parser.add_argument("--owner", required=True, help="user or org login that owns the board")
@@ -191,10 +239,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="test every token permission independently and report all failures at once",
     )
+    parser.add_argument(
+        "--introspect",
+        action="store_true",
+        help="dump the exact field-type enum and iteration input shape, then exit",
+    )
     args = parser.parse_args(argv)
 
     if args.check:
         return check_token(args.owner, args.repo)
+
+    if args.introspect:
+        return introspect_schema()
 
     try:
         config = load_project_config()
