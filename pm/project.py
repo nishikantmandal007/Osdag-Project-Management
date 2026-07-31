@@ -66,14 +66,10 @@ class GraphQL:
         payload = response.json()
         if "errors" in payload:
             messages = "; ".join(e.get("message", str(e)) for e in payload["errors"])
-            # Name the operation that failed — a bare GraphQL message gives no
-            # clue which of a dozen calls tripped, and each retry is a CI run.
-            op = "?"
-            for line in query.strip().splitlines():
-                stripped = line.strip()
-                if stripped and not stripped.startswith(("query", "mutation", "#")):
-                    op = stripped.split("(")[0].split("{")[0].strip() or op
-                    break
+            # Show the failing query verbatim. Inferring an operation name from
+            # the source was unreliable for documents that start with '{', and a
+            # mislabelled error costs a whole CI round trip to re-diagnose.
+            op = " ".join(query.split())[:160]
             if "INSUFFICIENT_SCOPES" in response.text or "read:project" in messages:
                 raise ProjectError(
                     f"[{op}] token lacks Projects access: {messages}\n"
