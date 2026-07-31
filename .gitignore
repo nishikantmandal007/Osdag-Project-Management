@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Reconciler run artifacts — regenerated every run, never committed.
+.drift-report.json
+.heartbeat
+
+# Never commit a token. The reconciler reads it from the GH_PM_TOKEN secret.
+.env
+*.pat
