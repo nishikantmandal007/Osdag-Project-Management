@@ -15,7 +15,7 @@ name: osdag
 display_name: "Osdag"
 short_description: "Sprints, epics and tiered bugs for Osdag."
 
-board_number: null
+board_number: 5
 logo: "https://osdag.fossee.in/sites/osdag.fossee.in/files/Logo_osdag.png"
 
 source_repos:
