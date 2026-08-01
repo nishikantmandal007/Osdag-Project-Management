@@ -1,20 +1,23 @@
 # SOP-04 — Epics and sub-epics
 
 Epics are the L2 layer: outcome-level containers that close when the outcome is
-achieved, not when a task is done. They are declarative — `config/epics.yml` is
-the source of truth and `pm/epics.py` reconciles it.
+achieved, not when a task is done. They are declarative — a project's
+`config/software/NAME.yml:epics` is the source of truth and `pm/epics.py`
+reconciles it.
 
 ## How an epic is defined
 
-Each entry in `config/epics.yml` has:
+Each entry in the overlay's `epics:` list has:
 
 - **`code`** — e.g. `E1 result-traceability`. Matches the board's Epic
   single-select option **verbatim**. Changing it orphans the board linkage.
 - **`title`**, **`outcome`** — the outcome goes in the issue body.
 - **`release`** — informational in the body; the actual milestone is set on the
   board.
-- **`areas`** — label names that **must already exist** in `config/labels.yml`.
-  The reconciler refuses an unknown area rather than silently dropping it.
+- **`areas`** — label names that **must already exist** in the project's label
+  set (the shared `type:/sev:` labels in `config/base.yml` plus the overlay's own
+  `area:` labels). The reconciler refuses an unknown area rather than silently
+  dropping it.
 
 The reconciler writes an idempotency marker `<!-- pm-epic:KEY -->` into each epic
 body, so re-running never duplicates one. It is **report-only** — it never closes
@@ -32,12 +35,12 @@ Sub-epics are linked as **native sub-issues** under the parent. The REST
 
 ## Adding or changing an epic
 
-1. Edit `config/epics.yml` in a PR (config is reviewed like code).
-2. If you add an `areas` entry, make sure that `area:*` label exists in
-   `config/labels.yml` first, or the reconciler will reject it.
-3. If the epic should appear as a board field option, add it to the `Epic`
-   single-select in `config/project.yml` too — the two are kept in sync by hand,
-   verbatim.
+1. Edit the overlay's `epics:` list in a PR (config is reviewed like code).
+2. If you add an `areas` entry, make sure that `area:*` label exists in the
+   overlay first, or the reconciler will reject it.
+3. Nothing to sync by hand for the board: the **Epic** single-select options are
+   *derived* from the epic codes at merge time, so a new epic becomes a board
+   option automatically. Run `pm-bootstrap-board.yml` to apply the field change.
 4. Merge, then run `pm-epics.yml` (manual dispatch). Idempotent: a second run
    reports 0 created / 0 linked.
 

@@ -1,20 +1,25 @@
 name: Bootstrap board
 
-# Manual only. Creates the Projects V2 board, its fields and its views from
-# config/project.yml. Idempotent — re-running is a no-op, which is what makes
-# promotion to osdag-admin the same command with different inputs.
+# Manual only. Creates a project's Projects V2 board, its fields and its views
+# from base.yml + config/software/NAME.yml, and links every source repo in the
+# overlay. Idempotent — re-running is a no-op, which is what makes promotion to
+# osdag-admin the same command with different inputs.
 #
 # Runs here rather than locally so GH_PM_TOKEN never leaves Actions.
 on:
   workflow_dispatch:
     inputs:
+      software:
+        description: "Project to build (base.yml + config/software/NAME.yml); source repos come from its overlay"
+        required: true
+        default: osdagbridge
       owner:
         description: "Login that owns the board"
         required: true
         default: nishikantmandal007
       repo:
-        description: "Repository to link (OWNER/NAME)"
-        required: true
+        description: "Repo to probe for --check only (OWNER/NAME); source repos come from the overlay"
+        required: false
         default: nishikantmandal007/osdagbridge-pm
       apply:
         description: "Apply changes (unchecked = dry run)"
@@ -56,6 +61,7 @@ jobs:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
         run: |
           python -m pm.bootstrap_board \
+            --software "${{ inputs.software }}" \
             --owner "${{ inputs.owner }}" \
             --repo  "${{ inputs.repo }}" \
             ${{ inputs.introspect && '--introspect' || (inputs.check_only && '--check' || (inputs.populate && (inputs.apply && '--populate --apply' || '--populate') || (inputs.apply && '--apply' || ''))) }}

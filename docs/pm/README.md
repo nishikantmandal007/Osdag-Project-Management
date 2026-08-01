@@ -99,7 +99,7 @@ backlog and would otherwise blow past GitHub's 100-child ceiling. See
 | **Release pipeline** | Board | What's merged and where is it in the conda channels? (group by **Deploy stage**) |
 
 **Current Sprint is empty until you sprint-plan** — nothing is assigned to a
-sprint on a freshly seeded backlog. That is correct, not a bug. See
+sprint on a fresh backlog. That is correct, not a bug. See
 [SOP-03 Sprint cadence](SOP-03-sprint-cadence.md).
 
 **Status vs Deploy stage — two axes.** **Status** is the dev flow and ends at
@@ -129,7 +129,7 @@ conda release pipeline (see [SOP-06](SOP-06-seeding-promotion.md) / epic E6).
 | [SOP-03](SOP-03-sprint-cadence.md) | Sprint planning, grooming, and the iteration field |
 | [SOP-04](SOP-04-epics.md) | Epics, sub-epics, and rollup |
 | [SOP-05](SOP-05-reconciler.md) | Running the reconciler and reading drift |
-| [SOP-06](SOP-06-seeding-promotion.md) | Seeding from upstream and promoting to osdag-admin |
+| [SOP-06](SOP-06-seeding-promotion.md) | Direct-from-repo intake and promoting to osdag-admin |
 | [SOP-07](SOP-07-issue-lifecycle.md) | Filing a good issue; Definition of Ready / Done |
 | [SOP-08](SOP-08-board-views.md) | Board fields and view filters reference |
 | [BOARD-SETUP](BOARD-SETUP.md) | **The 5 manual clicks the API can't do** |

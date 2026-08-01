@@ -81,23 +81,12 @@ def _load_yaml(path: Path) -> dict:
         raise ConfigError(f"{path.name} is not valid YAML: {exc}") from exc
 
 
-def load_labels(path: Path | None = None) -> LabelConfig:
-    """Load `config/labels.yml`.
-
-    Flattens the namespace grouping into a single tuple, resolving each
-    namespace's default colour. See `_labels_from_document` for the cross-checks.
-    """
-    path = path or (CONFIG_DIR / "labels.yml")
-    return _labels_from_document(_load_yaml(path), source=path.name)
-
-
 def _labels_from_document(document: dict, source: str = "labels") -> LabelConfig:
     """Validate an already-loaded labels document and build a `LabelConfig`.
 
-    The document may come from a single `labels.yml` or from `load_merged`
-    (base namespaces + the overlay's `area:` namespace) — either way it has the
-    same shape and validates against the same schema. Cross-checks that the
-    schema cannot express:
+    The document is assembled by `load_merged` (base `type:`/`sev:` namespaces
+    plus the overlay's `area:` namespace) and validates against
+    `labels.schema.json`. Cross-checks that the schema cannot express:
 
     - no duplicate label names
     - every label name carries its namespace prefix
@@ -181,21 +170,13 @@ class EpicConfig:
     epics: tuple[Epic, ...]
 
 
-def load_epics(
-    path: Path | None = None, known_labels: set[str] | None = None
-) -> EpicConfig:
-    """Load `config/epics.yml`. See `_epics_from_document` for the cross-checks."""
-    path = path or (CONFIG_DIR / "epics.yml")
-    return _epics_from_document(_load_yaml(path), known_labels=known_labels, source=path.name)
-
-
 def _epics_from_document(
     document: dict, known_labels: set[str] | None = None, source: str = "epics"
 ) -> EpicConfig:
     """Validate an already-loaded epics document and build an `EpicConfig`.
 
-    The document may come from a single `epics.yml` or from `load_merged` (the
-    overlay's `epics.items`). Beyond the schema, cross-checks that:
+    The document is assembled by `load_merged` from the overlay's `epics.items`.
+    Beyond the schema, cross-checks that:
 
     - epic codes are unique (they map 1:1 to the board's Epic field options),
     - sub-epic slugs are unique within their parent,
@@ -251,73 +232,6 @@ def _epics_from_document(
     return EpicConfig(
         marker_prefix=document.get("marker_prefix", "epic"),
         epics=tuple(epics),
-    )
-
-
-@dataclass(frozen=True)
-class SeedConfig:
-    source_repo: str
-    snapshot: Path
-    label_map: dict[str, tuple[str, ...]]
-
-    def map_labels(self, source_labels: list[str]) -> tuple[list[str], list[str]]:
-        """Translate one issue's source labels to target labels.
-
-        Returns (mapped_targets, unmapped_sources). A source label present in
-        the map with an empty list is treated as intentionally-unmapped and does
-        NOT appear in unmapped_sources; a source label absent from the map does.
-        """
-        targets: list[str] = []
-        unmapped: list[str] = []
-        for src in source_labels:
-            if src in self.label_map:
-                targets.extend(self.label_map[src])
-            else:
-                unmapped.append(src)
-        # de-dupe, preserve order
-        seen: set[str] = set()
-        deduped = [t for t in targets if not (t in seen or seen.add(t))]
-        return deduped, unmapped
-
-
-def load_seed(
-    path: Path | None = None, known_labels: set[str] | None = None
-) -> SeedConfig:
-    """Load `config/seed.yml`.
-
-    Beyond the schema, checks every mapped *target* label exists (when
-    `known_labels` is given) and that the snapshot file is present — both would
-    otherwise fail deep inside a live seeding run.
-    """
-    path = path or (CONFIG_DIR / "seed.yml")
-    if not path.is_file():
-        raise ConfigError(f"missing config: {path}")
-
-    try:
-        document = yaml.safe_load(path.read_text()) or {}
-    except yaml.YAMLError as exc:
-        raise ConfigError(f"{path.name} is not valid YAML: {exc}") from exc
-
-    _validate(document, "seed.schema.json")
-
-    label_map = {k: tuple(v) for k, v in document["label_map"].items()}
-    snapshot = (REPO_ROOT / document["snapshot"]).resolve()
-
-    problems: list[str] = []
-    if not snapshot.is_file():
-        problems.append(f"snapshot not found: {snapshot}")
-    if known_labels is not None:
-        for src, targets in label_map.items():
-            for tgt in targets:
-                if tgt not in known_labels:
-                    problems.append(f"label_map[{src!r}] -> unknown target label {tgt!r}")
-    if problems:
-        raise ConfigError(f"{path.name} is inconsistent:\n" + "\n".join(f"  {p}" for p in problems))
-
-    return SeedConfig(
-        source_repo=document["source_repo"],
-        snapshot=snapshot,
-        label_map=label_map,
     )
 
 

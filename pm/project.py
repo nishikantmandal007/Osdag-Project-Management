@@ -22,14 +22,10 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field as dc_field
 from datetime import date, datetime, timedelta
-from pathlib import Path
 
 import requests
-import yaml
 
 GRAPHQL = "https://api.github.com/graphql"
-
-CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 
 
 class ProjectError(RuntimeError):
@@ -84,13 +80,6 @@ class GraphQL:
                 )
             raise ProjectError(f"[{op}] {messages}")
         return payload["data"]
-
-
-def load_project_config(path: Path | None = None) -> dict:
-    path = path or (CONFIG_DIR / "project.yml")
-    if not path.is_file():
-        raise ProjectError(f"missing config: {path}")
-    return yaml.safe_load(path.read_text()) or {}
 
 
 # ── lookups ──────────────────────────────────────────────────────────────────

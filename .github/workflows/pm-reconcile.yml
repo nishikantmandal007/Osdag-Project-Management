@@ -11,6 +11,10 @@ on:
     - cron: "17 2 * * *"   # 02:17 UTC daily; off the hour to dodge scheduler congestion
   workflow_dispatch:
     inputs:
+      software:
+        description: "Project whose label config to reconcile (base.yml + config/software/NAME.yml)"
+        required: false
+        default: osdagbridge
       apply:
         description: "Apply changes (unchecked = report only)"
         type: boolean
@@ -57,13 +61,20 @@ jobs:
           python -m pm.health --repo "${{ github.repository }}" | tee health.log
           echo "healthy=$(jq -r '.healthy' .health-report.json)" >> "$GITHUB_OUTPUT"
 
+      # The nightly reconciles THIS repo's own process labels (type:/area:), which
+      # the drift/health issues below are filed with. Real source repos are
+      # reconciled by dropping --repo (a manual dispatch, gated on PAT write). The
+      # label config still comes from --software; on schedule/PR it defaults to
+      # osdagbridge since no dispatch input is present.
       - name: Reconcile labels
         id: reconcile
         continue-on-error: true
         env:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
+          SOFTWARE: ${{ inputs.software || 'osdagbridge' }}
         run: |
           python -m pm.reconcile \
+            --software "$SOFTWARE" \
             --repo "${{ github.repository }}" \
             ${{ (github.event_name == 'workflow_dispatch' && inputs.apply) && '--apply' || '--dry-run' }} \
             | tee reconcile.log

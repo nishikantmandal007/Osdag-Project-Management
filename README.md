@@ -72,11 +72,13 @@ automations have no API and must be clicked by hand.
 
 ## Status
 
-Board live (project #3, 77 issues, 10 epics + 6 sub-epics seeded). Reconciler
+Board live (project #3, 10 epics + 6 sub-epics). Reconciler
 runs nightly, read-only, with a board-health check (liveness heartbeat + stale
 un-triaged issues) that self-heals its own "Board health" issue. Docs and SOPs
-landed. Config is now split base + per-project overlay (`--software`), and the
-board title is set to plain **OsdagBridge** in config — the one-time live rename
+landed. Config is now split base + per-project overlay (`--software`); intake is
+**direct-from-repo** — each board tracks its `source_repos`' issues in place (the
+mirror/seeder is retired). The board title is set to plain **OsdagBridge** in
+config — the one-time live rename
 (`pm.bootstrap_board --rename-from "OsdagBridge Delivery" --apply`, needs the
 PAT) is pending. Still open: the analytics bots and governance sign-off
 ([`docs/pm/PROMOTION.md`](docs/pm/PROMOTION.md)). See the tracker for detail.

@@ -1,7 +1,9 @@
 # SOP-08 — Board fields and views reference
 
-Source of truth: `config/project.yml`. This is the human-readable index. The
-board is **project #3**, <https://github.com/users/nishikantmandal007/projects/3>.
+Source of truth: the board schema in `config/base.yml`, plus the `Epic` and
+`Area` options derived from the project's `config/software/NAME.yml`. This is the
+human-readable index. The board is **project #3**,
+<https://github.com/users/nishikantmandal007/projects/3>.
 
 ## Fields
 
@@ -13,7 +15,7 @@ board is **project #3**, <https://github.com/users/nishikantmandal007/projects/3
 | **Severity** | single-select | S1-critical · S2-major · S3-minor · S4-cosmetic |
 | **Size** | single-select | XS (≤2h) · S (≤1d) · M (≤3d) · L (≤1wk) · XL (split it) |
 | **Points** | number | 1, 2, 3, 5, 8 by convention |
-| **Epic** | single-select | E1…E10 (matches `config/epics.yml` codes verbatim) |
+| **Epic** | single-select | E1…E10 (derived from the overlay's `epics:` codes verbatim) |
 | **Area** | **multi-select** | Subsystems; multi because issues span two |
 | **Target release** | single-select | v1.0-GA · v1.1 · v2.0 · future |
 | **Start date** | date | Required for the roadmap to render |
@@ -49,7 +51,8 @@ input) then updated with one — verified against the live schema.
 
 ## Changing the board
 
-Edit `config/project.yml` in a PR, then run `pm-bootstrap-board.yml`. The
+Edit the board schema in `config/base.yml` (or, for `Epic`/`Area` options, the
+project's `config/software/NAME.yml`) in a PR, then run `pm-bootstrap-board.yml`. The
 reconciler adds new fields/options and reports extras; it never deletes a field,
 because a field holds every value ever set on every item and dropping it discards
 them all irrecoverably. Remove a field by hand in the UI, deliberately, if you

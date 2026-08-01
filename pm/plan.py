@@ -98,7 +98,7 @@ def _differs(desired: Label, live: dict) -> str | None:
 def plan_labels(config: LabelConfig, live_labels: list[dict]) -> Plan:
     """Build the label reconciliation plan.
 
-    :param config: desired state, from ``config/labels.yml``.
+    :param config: desired state, from ``load_merged(software).labels``.
     :param live_labels: raw GitHub label objects — needs ``name``, ``color``,
         ``description``.
     """

@@ -31,5 +31,5 @@ S2, ask: *could someone build to this output and be wrong?* If yes, it's S1.
   and metrics).
 - Board **Severity** field: mirror it, so the board views and roadmap can filter.
 
-The `sev:` label carries the SLA text in its description (`config/labels.yml`), so
+The `sev:` label carries the SLA text in its description (`config/base.yml`), so
 it travels with the issue.

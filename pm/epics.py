@@ -1,6 +1,9 @@
-"""Create the epic issues (L2) from `config/epics.yml`.
+"""Create the epic issues (L2) for a project's board.
 
-    python -m pm.epics --repo OWNER/NAME [--apply]
+    python -m pm.epics --software NAME --repo OWNER/NAME [--apply]
+
+Epics are read from base.yml + config/software/NAME.yml (the ``--software``
+overlay); ``--repo`` is where the issues are filed.
 
 Dry-run by default. Idempotent: every epic issue carries a hidden marker in its
 body (``<!-- pm-epic:KEY -->``), so a re-run finds its own work and creates
@@ -17,7 +20,7 @@ import argparse
 import re
 import sys
 
-from .config import ConfigError, EpicConfig, load_epics, load_labels, load_merged
+from .config import ConfigError, EpicConfig, load_merged
 from .github import Client, GitHubError
 
 # Hidden, stable, and matched verbatim on re-run. KEY is the epic code for a
@@ -55,14 +58,9 @@ def _index_existing(client: Client) -> dict[str, dict]:
     return index
 
 
-def reconcile(repo: str, apply: bool, software: str | None = None) -> int:
+def reconcile(repo: str, apply: bool, software: str) -> int:
     try:
-        if software:
-            merged = load_merged(software)
-            cfg: EpicConfig = merged.epics
-        else:
-            labels = load_labels()
-            cfg = load_epics(known_labels=set(labels.by_name()) | {"type:epic"})
+        cfg: EpicConfig = load_merged(software).epics
     except ConfigError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -163,8 +161,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--apply", action="store_true", help="execute (default: dry-run)")
     parser.add_argument(
         "--software",
+        required=True,
         metavar="NAME",
-        help="load epics from config/software/NAME.yml (default: legacy config/epics.yml)",
+        help="load epics from base.yml + config/software/NAME.yml",
     )
     args = parser.parse_args(argv)
     return reconcile(args.repo, args.apply, software=args.software)

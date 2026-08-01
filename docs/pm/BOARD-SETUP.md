@@ -19,19 +19,25 @@ the built-in workflows listed there. Each is **off by default**.
 
 ---
 
-## 1. Auto-add items from the repo
+## 1. Auto-add items — one per source repo
 
-**Why:** without it, only issues opened *from now on* land on the board; anything
-already open is invisible until added by hand.
+**Why:** the board tracks its source repos' issues **in place** (see
+[SOP-06](SOP-06-seeding-promotion.md)). Without Auto-add, only issues opened
+*from now on* land on the board — and GitHub gives each Auto-add workflow a
+single repo filter, so **you add one Auto-add per source repo** in the overlay's
+`source_repos`. A project with two source repos needs two of these.
 
-- Workflows → **Auto-add to project** → **Edit**
-- **When:** an item is added to `nishikantmandal007/osdagbridge-pm` (filter: `is:issue`)
+For each source repo:
+
+- Workflows → **Auto-add to project** (use a fresh one per repo) → **Edit**
+- **When:** an item is added to `OWNER/SOURCE-REPO` (filter: `is:issue`)
 - **Set:** add the item to the project
 - **Enable.**
 
-> The 77 issues already open were backfilled once via the `--populate` run of
-> `pm-bootstrap-board.yml`. This workflow only catches *future* issues — the two
-> are complementary, not redundant.
+> Open issues that already existed were backfilled once via the `--populate` run
+> of `pm-bootstrap-board.yml`, which iterates every `source_repo`. Auto-add only
+> catches *future* issues — backfill and Auto-add are complementary, not
+> redundant.
 
 ## 2. Item closed → Status: Done
 
@@ -74,21 +80,21 @@ treatment instead of sitting in "No Status" forever.
 
 After enabling all five:
 
-1. Open a throwaway test issue in the repo → it should appear on the board within
-   a few seconds, with **Status: Triage** (workflows 1 + 5).
+1. Open a throwaway test issue in **a source repo** → it should appear on the
+   board within a few seconds, with **Status: Triage** (workflows 1 + 5).
 2. Close it → **Status: Done** (workflow 2).
 3. Delete the test issue.
 
-If step 1 doesn't happen, the most common cause is that workflow 1's repository
-filter points at the wrong repo — re-open its editor and confirm it names
-`nishikantmandal007/osdagbridge-pm`.
+If step 1 doesn't happen, the most common cause is that no Auto-add (workflow 1)
+names *that* source repo — re-open the editors and confirm there is one Auto-add
+per repo in the overlay's `source_repos`.
 
 ---
 
 ## Field automations that *are* config-driven
 
-Do **not** try to set these here — they come from `config/project.yml` via the
-reconciler and will be overwritten:
+Do **not** try to set these here — they come from base.yml + the project's
+`config/software/NAME.yml` overlay via the reconciler and will be overwritten:
 
 - the Status column set and colours
 - the Sprint iteration schedule

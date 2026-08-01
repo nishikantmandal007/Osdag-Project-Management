@@ -153,12 +153,6 @@ class Client:
             payload["labels"] = labels
         return self._request("POST", f"/repos/{self.repo}/issues", json=payload).json()
 
-    def update_issue_body(self, number: int, body: str) -> dict:
-        """Patch just the body — used by the seeder's cross-reference rewrite."""
-        return self._request(
-            "PATCH", f"/repos/{self.repo}/issues/{number}", json={"body": body}
-        ).json()
-
     # ── sub-issues ─────────────────────────────────────────────────────────────
     #
     # Native parent/child links. `gh issue create --parent` needs gh 2.94.0;

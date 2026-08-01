@@ -1,56 +1,98 @@
-# SOP-06 — Seeding and promotion
+# SOP-06 — Intake and promotion
 
-## Seeding
+## Intake: direct from the repo
 
-The seeder mirrors the open issues of an upstream repo into this one, once,
-idempotently. Today's source is `Aditya-Donde/OsdagBridge` (59 issues → #19–#77).
+A board tracks its source repos' issues **in place**. There are no copies in the
+PM repo — the PM repo holds config and engine only. Each project's overlay
+(`config/software/NAME.yml`) declares its `source_repos`, and the board pulls
+those repos' issues onto itself.
 
-### How it works
+This replaced an earlier **mirror** model (a seeder that copied upstream issues
+into the PM repo with a `<!-- src:REPO#N -->` marker and a backlink). The mirror
+is retired — `pm/seed.py`, `config/seed*.{yml,json}`, `config/issue-map.yml` and
+`pm-seed.yml` are gone from the promoted path (still in git history). Direct
+intake is simpler and truthful: one issue, one home, no renumbering, no drift
+between a copy and its original.
 
-- **Reads a committed snapshot** (`config/seed-source.json`), not the live repo.
-  This sidesteps the fine-grained PAT's cross-repo read limits and makes the seed
-  **reviewable and reproducible** — the input is in git, not a moving target.
-- Each mirrored issue gets an idempotency marker
-  `<!-- src:Aditya-Donde/OsdagBridge#NNN -->`, so a re-run creates 0 and reports
-  59 already-mirrored.
-- A **backlink** line ("Mirrored from …#NNN") preserves provenance.
-- Bodies have their bare `#NNN` cross-refs **rewritten** to the new numbers via
-  `config/issue-map.yml` (source# → target#). The backlink and marker keep the
-  *source* number on purpose and are never rewritten — if they were, idempotency
-  would break.
-- Upstream labels are translated through `config/seed.yml`'s `label_map`.
-  "Check & Close" and "Future development" map to nothing (v2 namespaces).
+### How a board gets its issues
 
-### Refreshing the snapshot
+Three mechanisms, in order of when they run:
 
-The exact `gh` command to regenerate `config/seed-source.json` is in the header
-of `config/seed.yml`. Refresh, commit, then re-run `pm-seed.yml`. Because the
-seed is marker-idempotent, refreshing and re-running only *adds* new upstream
-issues; it never duplicates existing mirrors.
+1. **Link the source repos.** `pm-bootstrap-board.yml` (`--software NAME`) creates
+   the board and calls `link_repository` for every repo in the overlay's
+   `source_repos`. Linking is idempotent and is what lets those repos' issues be
+   added to the board at all.
 
-### It is one-way
+2. **Backfill the open issues once.** The `--populate` run of
+   `pm-bootstrap-board.yml` iterates every `source_repo`, lists its open issues,
+   and adds each to the board via `addProjectV2ItemById` (repo-agnostic — it
+   takes any repo's issue node id). Idempotent: re-running adds nothing already
+   present.
 
-The seeder never edits or closes upstream. It is a mirror, not a sync.
+3. **Catch new issues automatically.** GitHub's built-in **Auto-add** workflow,
+   pointed at each source repo, adds issues opened *after* setup. This is a
+   manual UI click **per source repo** — see
+   [BOARD-SETUP](BOARD-SETUP.md#1-auto-add-items-one-per-source-repo). Backfill
+   (step 2) and Auto-add (step 3) are complementary: one catches the past, the
+   other the future.
+
+### Labels-as-code now targets the source repos
+
+Because issues live in their own repos, `type:/sev:/area:` labels must exist
+**there**, on the real issues:
+
+```
+python -m pm.reconcile --software NAME            # every source_repo in the overlay
+python -m pm.reconcile --software NAME --repo O/N  # just one (e.g. the PM repo itself)
+```
+
+The label *config* comes from `--software` (base.yml + the overlay); the
+*targets* are the overlay's `source_repos`, unless `--repo` overrides to a single
+repo. Reconciling a source repo needs the PAT to have **Issues: write** there —
+the same governance gate as promotion (below). The nightly
+`pm-reconcile.yml` keeps `--repo <this repo>` so the PM repo's own process
+labels (used to file the drift/health issues) stay reconciled without needing
+write on anyone else's repo.
+
+### Cutover from the old mirror (board #3)
+
+Board #3 was populated under the mirror model, so it holds ~77 **copied** issues
+that live in the PM repo. There is **no seamless in-place migration** of those
+copies to direct-from-repo — a copy and its source are different issues with
+different numbers. To cut a mirror-era board over:
+
+1. Link the real source repos (`--software`, as above) and `--populate` to pull
+   their live issues onto the board alongside the old copies.
+2. Enable per-repo Auto-add for each source repo.
+3. Treat the mirrored copies as historical staging data: leave them as a frozen
+   record, or close/remove them by hand. The reconciler **never** closes them for
+   you — closing someone's issue is exactly the irreversible act the system
+   avoids.
+
+For a fresh project there is no cutover: its board is direct-from-repo from the
+first `--populate`.
 
 ---
 
 ## Promotion
 
-Promotion means standing this system up on the real tracker
-(`osdag-admin/OsdagBridge`) once it's validated here. **It is not one command** —
-and the reasons are structural, not laziness:
+Promotion means standing this system up against the real tracker
+(`osdag-admin/OsdagBridge` and its siblings) once it's validated here. **It is
+not one command** — the reasons are structural, not laziness:
 
-1. **The 5 board workflows are manual** ([BOARD-SETUP](BOARD-SETUP.md)). Whoever
-   promotes clicks through them again on the target board.
-2. **The reconciler *config* is repo-parameterised** — `--repo` / `--owner` — so
-   labels, epics, fields and views *do* replay with a different target. That part
-   is one command per piece.
-3. **Governance is unowned.** Without push access to the upstream repo, GitHub's
-   *Transfer issue* is unavailable, so migration is recreate-with-backlink: new
-   numbers, flattened comment threads, and a window where two trackers are live.
-   Who owns the canonical tracker, and what happens to the 59 comment threads, is
-   **[PROMOTION.md](PROMOTION.md)** (T15) — currently the real blocker, and
-   currently unowned.
+1. **The board workflows are manual, once per source repo.**
+   ([BOARD-SETUP](BOARD-SETUP.md).) Whoever promotes clicks through them again on
+   the target board — including one Auto-add per source repo.
+2. **The engine is fully parameterised** — `--software`, `--owner`, `--repo`. The
+   overlay's `source_repos` decide what the board tracks. Point an overlay at the
+   real repos and the labels, epics, fields and views replay against them. That
+   part is one command per piece.
+3. **The PAT needs write on the real repos.** Direct intake means labels-as-code
+   writes `type:/sev:/area:` onto the source repos' issues, so the PAT needs
+   **Issues: read + write** on each. On staging, point `source_repos` at repos
+   the user controls; for the real `osdag-admin` repos this is the unowned
+   governance decision in **[PROMOTION.md](PROMOTION.md)** (T15) — currently the
+   real blocker.
 
 **Do not promote before PROMOTION.md names a contact and a decision.** Everything
 technical is ready; the agreement is not.

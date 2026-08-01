@@ -10,20 +10,18 @@
     every epic. This pins them together.
 """
 
-from pathlib import Path
-
 import pytest
 
-from pm.config import ConfigError, load_epics, load_labels
+from pm.config import ConfigError, _epics_from_document, load_merged
 from pm.epics import MARKER_RE, _epic_body, _sub_body
 
 
 def known_labels() -> set[str]:
-    return set(load_labels().by_name()) | {"type:epic"}
+    return set(load_merged("osdagbridge").labels.by_name()) | {"type:epic"}
 
 
 def test_epics_config_loads_and_areas_exist():
-    cfg = load_epics(known_labels=known_labels())
+    cfg = load_merged("osdagbridge").epics
     assert len(cfg.epics) == 10
     # E1 is the one that splits.
     e1 = next(e for e in cfg.epics if e.code.startswith("E1"))
@@ -31,24 +29,26 @@ def test_epics_config_loads_and_areas_exist():
 
 
 def test_epic_codes_are_unique():
-    cfg = load_epics(known_labels=known_labels())
+    cfg = load_merged("osdagbridge").epics
     codes = [e.code for e in cfg.epics]
     assert len(codes) == len(set(codes))
 
 
-def test_areas_must_be_real_labels(tmp_path: Path):
-    bad = tmp_path / "epics.yml"
-    bad.write_text(
-        "version: 1\n"
-        "epics:\n"
-        "  - code: 'E1 x'\n"
-        "    title: t\n"
-        "    outcome: o\n"
-        "    release: v1.0-GA\n"
-        "    areas: [area:does-not-exist]\n"
-    )
+def test_areas_must_be_real_labels():
+    bad = {
+        "version": 1,
+        "epics": [
+            {
+                "code": "E1 x",
+                "title": "t",
+                "outcome": "o",
+                "release": "v1.0-GA",
+                "areas": ["area:does-not-exist"],
+            }
+        ],
+    }
     with pytest.raises(ConfigError, match="unknown area label"):
-        load_epics(path=bad, known_labels=known_labels())
+        _epics_from_document(bad, known_labels=known_labels())
 
 
 @pytest.mark.parametrize(

@@ -1,13 +1,15 @@
-"""Create or reconcile the Projects V2 board from `config/project.yml`.
+"""Create or reconcile a project's Projects V2 board from base.yml + its overlay.
 
-    python -m pm.bootstrap_board --owner LOGIN --repo OWNER/NAME [--apply]
+    python -m pm.bootstrap_board --owner LOGIN --software NAME [--apply]
 
 Dry-run by default. Idempotent: fields and views already present are left
-alone, so re-running is a no-op and promotion to another repo is the same
-command with a different --owner/--repo.
+alone, so re-running is a no-op and standing up a second project's board is the
+same command with a different --software.
 
-Never deletes. A field holds every value set on every item; dropping it discards
-all of them with no way back. Extras are reported for a human to remove.
+The board is linked to the overlay's ``source_repos`` and pulls their issues in
+place (``--populate``) — there is no mirror. Never deletes: a field holds every
+value set on every item; dropping it discards all of them with no way back.
+Extras are reported for a human to remove.
 """
 
 from __future__ import annotations
@@ -25,7 +27,6 @@ from .project import (
     create_view,
     find_project,
     link_repository,
-    load_project_config,
     owner_id,
     project_fields,
     project_views,
@@ -45,18 +46,17 @@ BUILTIN_FIELDS = {
 }
 
 
-def _board_config(software: str | None) -> dict:
-    """The board's project.yml-shaped config.
+def _merged(software: str | None):
+    """Load base.yml + the overlay for ``software``.
 
-    ``--software NAME`` builds it from base.yml + the overlay (the
-    project-invariant path); without it, the legacy single ``config/project.yml``
-    is read. ConfigError is re-raised as ProjectError so callers need only one
-    ``except``.
+    ``--software`` is the only config path now (the monolithic ``project.yml``
+    was retired with the mirror). ConfigError is re-raised as ProjectError so
+    callers need only one ``except``.
     """
     if not software:
-        return load_project_config()
+        raise ProjectError("--software NAME is required (config is base.yml + config/software/NAME.yml)")
     try:
-        return load_merged(software).board
+        return load_merged(software)
     except ConfigError as exc:
         raise ProjectError(str(exc)) from exc
 
@@ -214,7 +214,7 @@ def rename_board(owner: str, old_title: str, apply: bool, software: str | None =
     """
     try:
         gql = GraphQL.from_env()
-        config = _board_config(software)
+        config = _merged(software).board
     except ProjectError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -262,29 +262,31 @@ def rename_board(owner: str, old_title: str, apply: bool, software: str | None =
     return 0
 
 
-def populate_board(owner: str, repo: str, apply: bool, software: str | None = None) -> int:
-    """Add every open issue in the repo to the board.
+def populate_board(owner: str, apply: bool, software: str | None = None) -> int:
+    """Add every open issue in the overlay's source repos to the board, in place.
 
-    The built-in 'Auto-add' workflow only catches issues opened after it is
-    enabled; the epics and the seeded backlog already existed, so they need this
-    one-time backfill. Idempotent — ``addProjectV2ItemById`` returns the
+    Direct-from-repo: the board tracks the SOURCE repos' own issues — there is no
+    mirror. The built-in 'Auto-add' workflow only catches issues opened after it
+    is enabled, so this one-time backfill sweeps everything already open across
+    every ``source_repo``. Idempotent — ``addProjectV2ItemById`` returns the
     existing item for an issue already on the board.
 
     Deliberately does NOT set Status/Sprint. New items land with no Status (the
-    'No Status' column) and no Sprint, which is correct: a freshly-seeded
-    backlog is not sprint-planned. That is also why the 'Current Sprint' view is
-    empty — nothing is in a sprint yet, by design.
+    'No Status' column) and no Sprint, which is correct: an un-planned backlog is
+    not sprint-planned. That is also why the 'Current Sprint' view is empty —
+    nothing is in a sprint yet, by design.
     """
     from .github import Client, GitHubError
 
     try:
         gql = GraphQL.from_env()
-        config = _board_config(software)
+        merged = _merged(software)
     except ProjectError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    title = config["project"]["title"]
+    title = merged.board["project"]["title"]
+    source_repos = merged.meta.source_repos
     try:
         _, is_org = owner_id(gql, owner)
         project = find_project(gql, owner, title, is_org)
@@ -293,27 +295,34 @@ def populate_board(owner: str, repo: str, apply: bool, software: str | None = No
             return 1
         pid = project["id"]
 
-        client = Client.from_env(repo)
-        issues = client.list_issues(state="open")
+        # Gather every open issue across all source repos before touching the
+        # board, so a bad repo/token fails before any partial backfill.
+        per_repo: list[tuple[str, list[dict]]] = []
+        for repo in source_repos:
+            issues = Client.from_env(repo).list_issues(state="open")
+            per_repo.append((repo, issues))
     except (ProjectError, GitHubError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
+    total = sum(len(issues) for _, issues in per_repo)
     print(f"project: #{project['number']} {title!r}")
-    print(f"issues : {len(issues)} open in {repo}")
+    for repo, issues in per_repo:
+        print(f"issues : {len(issues)} open in {repo}")
     print(f"mode   : {'APPLY' if apply else 'dry-run'}\n")
 
     if not apply:
-        print(f"would add {len(issues)} issue(s) to the board (idempotent)")
+        print(f"would add {total} issue(s) from {len(source_repos)} repo(s) to the board (idempotent)")
         print("\ndry run; nothing changed. Re-run with --apply")
         return 1
 
     added = 0
-    for issue in issues:
-        add_item(gql, pid, issue["node_id"])
-        added += 1
-        if added % 20 == 0:
-            print(f"  added {added}/{len(issues)}")
+    for repo, issues in per_repo:
+        for issue in issues:
+            add_item(gql, pid, issue["node_id"])
+            added += 1
+            if added % 20 == 0:
+                print(f"  added {added}/{total}")
     print(f"\ndone: {added} issue(s) on the board (duplicates were no-ops)")
     print("Epic Roadmap and Backlog Grooming now populate; Current Sprint stays")
     print("empty until issues are assigned to a sprint.")
@@ -385,7 +394,12 @@ def introspect_schema() -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="pm.bootstrap_board", description=__doc__)
     parser.add_argument("--owner", required=True, help="user or org login that owns the board")
-    parser.add_argument("--repo", required=True, metavar="OWNER/NAME", help="repo to link")
+    parser.add_argument(
+        "--repo",
+        metavar="OWNER/NAME",
+        default=None,
+        help="repo to probe with --check (board links come from the overlay's source_repos)",
+    )
     parser.add_argument("--apply", action="store_true", help="execute (default: dry-run)")
     parser.add_argument(
         "--check",
@@ -400,7 +414,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--populate",
         action="store_true",
-        help="backfill: add every open repo issue to the board (idempotent)",
+        help="backfill: add every open source-repo issue to the board (idempotent)",
     )
     parser.add_argument(
         "--rename-from",
@@ -411,12 +425,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--software",
         metavar="NAME",
-        help="build the board from base.yml + config/software/NAME.yml "
-             "(default: legacy config/project.yml)",
+        help="build the board from base.yml + config/software/NAME.yml",
     )
     args = parser.parse_args(argv)
 
     if args.check:
+        if not args.repo:
+            print("error: --check needs --repo OWNER/NAME to probe", file=sys.stderr)
+            return 2
         return check_token(args.owner, args.repo)
 
     if args.introspect:
@@ -426,17 +442,23 @@ def main(argv: list[str] | None = None) -> int:
         return rename_board(args.owner, args.rename_from, args.apply, software=args.software)
 
     if args.populate:
-        return populate_board(args.owner, args.repo, args.apply, software=args.software)
+        return populate_board(args.owner, args.apply, software=args.software)
 
     try:
-        config = _board_config(args.software)
+        merged = _merged(args.software)
         gql = GraphQL.from_env()
     except ProjectError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
+    config = merged.board
     title = config["project"]["title"]
-    repo_owner, repo_name = args.repo.split("/", 1)
+    source_repos = merged.meta.source_repos
+    if not source_repos:
+        print(f"error: {args.software} declares no source_repos to link", file=sys.stderr)
+        return 2
+    # The project is created against one repo, then linked to the rest.
+    primary_owner, primary_name = source_repos[0].split("/", 1)
 
     try:
         oid, is_org = owner_id(gql, args.owner)
@@ -445,7 +467,7 @@ def main(argv: list[str] | None = None) -> int:
             print("         note: user account - GitHub Issue Types are unavailable here")
             print("         (org-only), which is why work kind lives in `type:` labels.")
 
-        rid = repository_id(gql, repo_owner, repo_name)
+        rid = repository_id(gql, primary_owner, primary_name)
         project = find_project(gql, args.owner, title, is_org)
 
         # ── project ──────────────────────────────────────────────────────────
@@ -458,10 +480,21 @@ def main(argv: list[str] | None = None) -> int:
         else:
             project = create_project(gql, oid, title, rid)
             print(f"project: CREATED #{project['number']} -> {project['url']}")
-            link_repository(gql, project["id"], rid)
-            print(f"         linked to {args.repo}")
 
         pid = project["id"]
+
+        # ── linked repos ──────────────────────────────────────────────────────
+        # Direct-from-repo: every source repo is linked so its issues show up on
+        # the board. linkProjectV2ToRepository is idempotent, so this is safe to
+        # re-run whether the project was just created or already existed.
+        print(f"\nrepos  : {len(source_repos)} source repo(s)")
+        for repo in source_repos:
+            ro, rn = repo.split("/", 1)
+            if args.apply:
+                link_repository(gql, pid, repository_id(gql, ro, rn))
+                print(f"  linked   {repo}")
+            else:
+                print(f"  LINK     {repo}")
 
         # ── fields ───────────────────────────────────────────────────────────
         existing = project_fields(gql, pid)
@@ -507,11 +540,14 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\nboard ready: {project.get('url', '(existing)')}")
     print("\nSTILL MANUAL - GitHub exposes no create/update mutation for built-in")
     print("board workflows. Enable these five in the UI (docs/pm/BOARD-SETUP.md):")
-    print("  1. Auto-add items from the repo")
+    print("  1. Auto-add items from the repo  (one per source repo, see below)")
     print("  2. Item closed        -> Status: Done")
     print("  3. PR merged          -> Status: Done")
     print("  4. Auto-archive items in Done after 14 days")
     print("  5. Item added         -> Status: Triage")
+    print("\nAuto-add is per-repo. Add one for each linked source repo:")
+    for repo in source_repos:
+        print(f"  - {repo}")
     return 0
 
 

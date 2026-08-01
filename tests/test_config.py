@@ -1,11 +1,11 @@
-"""base + overlay merge is a lossless stand-in for the old monolithic config.
+"""base + overlay merge builds each project's board from a shared half.
 
-The point of the split is project-invariance without behaviour change: running
-`--software osdagbridge` must reproduce today's labels, epics and board field/
-view set exactly. These tests pin that by comparing the merged result against
-the single-file loaders that still read the original `labels/epics/project.yml`.
-When the monolithic files are retired, delete the equality tests and keep the
-schema/overlay ones.
+One engine runs several FOSSEE-project boards. `config/base.yml` holds what is
+identical across them; `config/software/<name>.yml` holds what differs.
+`load_merged(name)` stitches the two into the label / epic / board shapes the
+reconciler consumes. These tests pin that the merge is well-formed, that the
+OsdagBridge board carries every field and view it is supposed to, and that a
+second project (Osdag) is genuinely independent.
 """
 
 from __future__ import annotations
@@ -15,83 +15,36 @@ import pytest
 from pm.config import (
     ConfigError,
     list_software,
-    load_epics,
-    load_labels,
     load_merged,
     load_rollup,
 )
-from pm.project import load_project_config
 
 
-# ── the split is lossless for OsdagBridge ────────────────────────────────────
+# ── the OsdagBridge board is complete ────────────────────────────────────────
 
-def test_merged_labels_match_monolithic():
-    """base.yml (type/sev) + osdagbridge.yml (area) == today's labels.yml."""
-    merged = load_merged("osdagbridge").labels
-    legacy = load_labels()
-
-    assert merged.by_name() == legacy.by_name()
-    assert merged.aliases() == legacy.aliases()
-    assert merged.protected == legacy.protected
-    assert merged.migrations == legacy.migrations
-
-
-def test_merged_epics_match_monolithic():
-    """osdagbridge.yml:epics == today's epics.yml, cross-checked vs merged labels."""
-    merged = load_merged("osdagbridge")
-    known = set(merged.labels.by_name())
-    legacy = load_epics(known_labels=known)
-
-    assert merged.epics.marker_prefix == legacy.marker_prefix
-    assert merged.epics.epics == legacy.epics
+# The fields and views the merged board must expose, in order. Base supplies
+# most; the Epic and Area fields are derived from the overlay. Kept here as the
+# explicit contract the reconciler builds from — a dropped field would silently
+# discard every value set on it, so this list is deliberately spelled out.
+EXPECTED_FIELDS = [
+    "Status", "Sprint", "Priority", "Severity", "Size", "Points",
+    "Epic", "Area", "Target release", "Deploy stage", "Start date", "Target date",
+]
+EXPECTED_VIEWS = [
+    "Current Sprint", "Triage Queue", "Backlog Grooming", "Epic Roadmap",
+    "Release v1.0-GA", "By Owner", "Release pipeline",
+]
 
 
-def _subsequence(sub: list, whole: list) -> bool:
-    """True if `sub` appears in `whole` in order (gaps allowed)."""
-    it = iter(whole)
-    return all(item in it for item in sub)
-
-
-def test_merged_board_reproduces_fields_and_views():
-    """Every legacy field/view/option is still present — nothing was dropped.
-
-    The base+overlay split must never LOSE anything the monolith had, but later
-    deliverables deliberately ADD to the board (Task #6: a "Deploy stage" field,
-    a "Merged" Status option, a "Release pipeline" view). So this asserts the
-    legacy board is an order-preserving SUBSET of the merged one, rather than an
-    exact match. Options are compared by (name, colour) — the functional contract
-    the reconciler creates from; descriptions are cosmetic and not asserted.
-    """
+def test_merged_board_has_expected_fields_and_views():
+    """The board carries every field and view, in order, titled 'OsdagBridge'."""
     board = load_merged("osdagbridge").board
-    legacy = load_project_config()
 
-    # The board title is an intentional divergence from the retired monolith:
-    # the "Osdag Project Management" suite renames board #3 "OsdagBridge Delivery"
-    # -> "OsdagBridge" (a one-time updateProjectV2 via `--rename-from`). The short
-    # description is unchanged.
     assert board["project"]["title"] == "OsdagBridge"
-    assert legacy["project"]["title"] == "OsdagBridge Delivery"
-    assert board["project"]["short_description"] == legacy["project"]["short_description"]
+    assert board["project"]["short_description"]
 
-    merged_fields = {f["name"]: f for f in board["fields"]}
-    legacy_fields = {f["name"]: f for f in legacy["fields"]}
-    # Every legacy field survives, in the same relative order (extras may sit
-    # between them).
-    assert _subsequence(list(legacy_fields), list(merged_fields))
-
-    for name, lf in legacy_fields.items():
-        mf = merged_fields[name]
-        assert mf["type"] == lf["type"], name
-        if "options" in lf:
-            merged_opts = [(o["name"], o.get("color")) for o in mf["options"]]
-            legacy_opts = [(o["name"], o.get("color")) for o in lf["options"]]
-            # Legacy options are all still there, in order; new ones (e.g. the
-            # "Merged" Status terminal) may be interleaved.
-            assert _subsequence(legacy_opts, merged_opts), name
-
-    merged_views = [v["name"] for v in board["views"]]
-    legacy_views = [v["name"] for v in legacy["views"]]
-    assert _subsequence(legacy_views, merged_views)
+    assert [f["name"] for f in board["fields"]] == EXPECTED_FIELDS
+    assert [v["name"] for v in board["views"]] == EXPECTED_VIEWS
 
 
 def test_deploy_stage_field_and_merged_status_and_release_view():

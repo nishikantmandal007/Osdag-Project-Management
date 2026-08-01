@@ -1,7 +1,7 @@
 # SOP-03 — Sprint cadence
 
 Two-week sprints, starting **Monday 2026-08-03**. The Sprint field is a Projects
-V2 **iteration** field generated from `config/project.yml` (`start_date`,
+V2 **iteration** field generated from the board schema in `config/base.yml` (`start_date`,
 `duration_days: 14`) — the board owns the numbered iterations, replacing the old
 "Sprint N:" title-prefix convention.
 
