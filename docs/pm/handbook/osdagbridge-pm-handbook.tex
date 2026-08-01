@@ -103,7 +103,7 @@ Read it front to back once. After that, keep it next to the board.
 \end{minipage}
 
 \vfill
-{\large Version 1.1 \quad|\quad 1 August 2026}\\[4pt]
+{\large Version 1.2 \quad|\quad 1 August 2026}\\[4pt]
 {\small Part of \textbf{Osdag Project Management} --- one engine, many FOSSEE-project boards.}\\[2pt]
 {\small Repository: \code{nishikantmandal007/Osdag-Project-Management}}\\[2pt]
 {\small Board: project \#3, ``OsdagBridge''}
@@ -269,29 +269,49 @@ know when the next planning and the next review happen.
 \section{Board, columns, and Status}
 The \textbf{board} is the picture of all your issues as cards, arranged in columns.
 The column an issue sits in is its \textbf{Status}. Our columns run left to right
-like an assembly line.
+like an assembly line, and \emph{one} line carries a card all the way from ``nobody
+has looked at this'' to ``it is running in production.'' There is no second
+shipped-or-not column: the release stages are simply the tail of the same Status
+axis.
 
 \begin{center}
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[font=\small,>={Latex[length=2mm]}]
   \tikzstyle{st}=[draw=ink,fill=noteBg,rounded corners,minimum height=0.85cm,inner xsep=4pt]
+  % top row: the dev flow
   \node[st] (b) {Backlog};
   \node[st,right=5mm of b] (t) {Triage};
   \node[st,right=5mm of t] (r) {Ready};
   \node[st,right=5mm of r] (p) {In Progress};
   \node[st,right=5mm of p] (v) {In Review};
-  \node[st,right=5mm of v] (q) {QA / Verify};
-  \node[st,fill=peGreenBg,right=5mm of q] (d) {Done};
-  \foreach \a/\c in {b/t,t/r,r/p,p/v,v/q,q/d} \draw[->,brandblue] (\a) -- (\c);
-  \node[st,fill=gotchaBg,below=8mm of p] (bl) {Blocked};
+  \node[st,fill=peGreenBg,right=5mm of v] (ld) {Live in Dev};
+  \foreach \a/\c in {b/t,t/r,r/p,p/v,v/ld} \draw[->,brandblue] (\a) -- (\c);
+  % bottom row: the release tail, wrapping from Live in Dev
+  \node[st,fill=peGreenBg,below=9mm of b] (q) {QA / Verify};
+  \node[st,right=5mm of q] (rt) {Ready for Test};
+  \node[st,right=5mm of rt] (rp) {Ready for Prod};
+  \node[st,fill=peGreenBg,right=5mm of rp] (ip) {In Production};
+  \node[st,fill=peGreenBg,right=5mm of ip] (d) {Done};
+  \foreach \a/\c in {q/rt,rt/rp,rp/ip,ip/d} \draw[->,brandblue] (\a) -- (\c);
+  \draw[->,brandblue] (ld.south) |- (q.west);
+  % waiting states, off to the side
+  \node[st,fill=gotchaBg,right=16mm of ld] (bl) {Blocked};
+  \node[st,fill=gotchaBg,below=4mm of bl] (oh) {On-Hold};
   \draw[->,gotchaRed,dashed] (p) -- (bl);
-  \draw[->,peGreen,dashed] (bl) -- (r);
 \end{tikzpicture}}
 \end{center}
 
-\textbf{Blocked} is off to the side on purpose. It is not a stage you pass through,
-it is a place a card waits when something outside it is in the way. A blocked card
-must name what it is waiting on.
+The first five columns are the everyday development flow. The moment code merges to
+the default branch it becomes \textbf{Live in Dev} --- the same card keeps going,
+now through the release stages: verified (\textbf{QA / Verify}), promoted to the
+test channel (\textbf{Ready for Test}), cleared for release (\textbf{Ready for
+Prod}), and finally shipped (\textbf{In Production}), before it lands in
+\textbf{Done}. One card, one column, cradle to production.
+
+\textbf{Blocked} and \textbf{On-Hold} are off to the side on purpose. They are not
+stages you pass through, they are places a card waits: \emph{Blocked} when something
+outside it is in the way (and it must name what it is waiting on), \emph{On-Hold}
+when the team has deliberately paused it.
 
 \section{Severity versus Priority}
 These two get confused constantly, so pin them down now.
@@ -547,7 +567,7 @@ becomes a board.
 \chapter{Add the board fields}
 
 A \textbf{field} is a column: one piece of structured information every card can
-carry. We use twelve. For each one below you get what it is, why it exists, its
+carry. We use thirteen. For each one below you get what it is, why it exists, its
 type, and its values.
 
 \begin{notebox}
@@ -567,16 +587,17 @@ yourself and let the script add the three special ones.
 \textbf{Field} & \textbf{Type} & \textbf{Why it exists / values} \\
 \midrule
 \endhead
-Status & single-select & Which column the card is in. Backlog, Triage, Ready, In Progress, In Review, Merged, QA / Verify, Blocked, Done. \\
+Status & single-select & Which column the card is in --- the whole life of a card on one axis. Backlog, Triage, Ready, In Progress, In Review, Live in Dev, QA / Verify, Ready for Test, Ready for Prod, In Production, Blocked, On-Hold, Done. \\
 Sprint & iteration (14 days) & Which fortnight this is committed to. A timeline field; automation-only. \\
+Type & single-select & What \emph{kind} of work it is: Epic, Feature, Story, Bug, Task, Chore, Spike, Docs, Test. Mirrors the \code{type:} labels so the board can \emph{group} by kind. \\
 Priority & single-select & How soon: P0-now, P1-sprint, P2-next, P3-backlog. \\
 Severity & single-select & How bad: S1 to S4 (bugs). \\
 Size & single-select & Rough effort: XS ($\le$2h), S ($\le$1d), M ($\le$3d), L ($\le$1wk), XL (split it). \\
 Points & number & Optional numeric size: 1, 2, 3, 5, 8. \\
 Epic & single-select & Which big outcome (E1 to E10). \\
 Area & \textbf{multi-select} & Which subsystems. Multi-valued on purpose: issues span two. \\
+Team & single-select & Which team owns it (UI, Design Core, \ldots). Derived from the project's \code{teams:} block. \\
 Target release & single-select & v1.0-GA, v1.1, v2.0, future. \\
-Deploy stage & single-select & Where a \emph{merged} item is in the release channels: Dev, Test, Ready for Prod, In Production (blank = not deployed). A separate axis from Status. \\
 Start date & date & When work began. Feeds the roadmap view. \\
 Target date & date & When it is due. Feeds the roadmap view. \\
 \bottomrule
@@ -584,12 +605,16 @@ Target date & date & When it is due. Feeds the roadmap view. \\
 \end{center}
 
 \begin{plainenglish}
-\textbf{Status} and \textbf{Deploy stage} answer two different questions.
-Status is ``is the code written and merged?'' and it ends at \textbf{Merged}
-(then QA/Verify, then Done). Deploy stage is ``is the merged code \emph{shipped},
-and how far?'' --- it walks the conda release channels from Dev to In Production.
-An item can be Done on Status while still sitting at Test on Deploy stage. Keeping
-them apart stops ``written'' and ``shipped'' from fighting over one column.
+\textbf{One axis, not two.} Earlier versions of this board split ``is it written?''
+from ``is it shipped?'' into two separate columns --- a Status field and a Deploy
+stage field. We folded them into one. Now a single \textbf{Status} carries a card
+from Backlog all the way to In Production: once code merges it becomes \emph{Live in
+Dev}, and the release stages (\emph{Ready for Test}, \emph{Ready for Prod}, \emph{In
+Production}) are just the far end of the same line. The win is that there is only
+ever one honest answer to ``where is this?'' --- you never have to reconcile two
+columns that disagree. (If you are looking at an older board that still has a
+separate Deploy stage field, the reconciler leaves it in place --- it never deletes
+--- but nothing new is written to it.)
 \end{plainenglish}
 
 \begin{gotcha}
@@ -606,10 +631,10 @@ out and the Epic Roadmap view looks broken for no obvious reason. This is a clas
 half-hour of confusion; the fix is simply to add both date fields.
 \end{gotcha}
 
-\chapter{Build the eight views}
+\chapter{Build the nine views}
 
 A \textbf{view} is a saved arrangement: a layout plus a filter, so a specific
-audience sees exactly the cards they care about. All eight are created by the
+audience sees exactly the cards they care about. All nine are created by the
 automation, because the click menu cannot save a filter with a new view at our tool
 versions. Here is each one and, just as important, when it is \emph{supposed} to
 look empty.
@@ -620,14 +645,15 @@ look empty.
 \textbf{View} & \textbf{Layout} & \textbf{Shows} & \textbf{Expected empty when\ldots} \\
 \midrule
 \endhead
-Current Sprint & Board & This fortnight's committed, unfinished work & No issues assigned to a sprint yet \\
+Current Sprint & Table & This fortnight's committed, unfinished work, as a checklist & No issues assigned to a sprint yet \\
+Workload & Board & This sprint's open work grouped by person (this absorbs the old ``By Owner'') & No sprint work yet \\
+By Team & Board & Every open issue grouped by which team owns it & No open issues \\
+By Type & Board & Every open issue grouped by kind (epic, bug, feature, \ldots) & No open issues \\
 Triage Queue & Table & New issues needing sorting, oldest first & Everything has been triaged \\
 Backlog Grooming & Table & Open, non-epic issues with no sprint & Nothing is un-scheduled \\
 Epic Roadmap & Roadmap & The epics on a timeline & Never, once date fields exist \\
 Release v1.0-GA & Board & Everything aimed at the next release & \\
-By Owner & Board & This sprint's work grouped by person & No sprint work yet \\
-Release pipeline & Board & Merged items moving through the conda channels & Nothing merged yet \\
-Workload & Board & Who is carrying the most this sprint & No sprint work yet \\
+Release pipeline & Board & Items in the release tail of Status, moving through the conda channels & Nothing has merged to dev yet \\
 \bottomrule
 \end{longtable}
 \end{center}
@@ -640,13 +666,14 @@ it.
 \end{notebox}
 
 \begin{gotcha}
-\textbf{Two of the views need one manual toggle each.} The automation sets each
+\textbf{The grouped views need one manual toggle each.} The automation sets each
 view's \emph{filter}, but GitHub exposes no way for a program to set a view's
-\emph{grouping}. So after setup, open \textbf{Release pipeline}, click \textbf{\ldots}
-\code{->} \textbf{Group by} \code{->} \textbf{Deploy stage}; and open
-\textbf{Workload}, \textbf{\ldots} \code{->} \textbf{Group by} \code{->}
-\textbf{Assignees} (or a custom Owner field --- see the interns chapter in Part~V).
-Same class of one-time click as the five workflows in the next chapter.
+\emph{grouping}. So after setup, open each of these, click \textbf{\ldots}
+\code{->} \textbf{Group by}, and pick its field: \textbf{Workload} \code{->}
+\textbf{Assignees} (or a custom Owner field --- see the interns chapter in Part~V);
+\textbf{By Team} \code{->} \textbf{Team}; \textbf{By Type} \code{->} \textbf{Type};
+and \textbf{Release pipeline} \code{->} \textbf{Status}. Same class of one-time
+click as the five workflows in the next chapter.
 \end{gotcha}
 
 \chapter{Turn on the five automations you click yourself}
@@ -669,9 +696,13 @@ Open the board, click the \textbf{\ldots} menu in the top right, and choose
   \item \textbf{Item closed becomes Status: Done.}\\
         Workflows \code{->} \textbf{Item closed} \code{->} Edit. Set Status to Done.
         Enable.
-  \item \textbf{Pull request merged becomes Status: Done.}\\
+  \item \textbf{Pull request merged becomes Status: Live in Dev.}\\
         Workflows \code{->} \textbf{Pull request merged} \code{->} Edit. Set Status
-        to Done. Enable.
+        to Live in Dev. Enable.\\
+        \emph{Why:} on the single-axis board a merged PR is not finished, it is
+        \emph{shipped to the dev channel}. The release pipeline then carries it on
+        through the tail (Ready for Test \code{->} In Production); closing the issue
+        is what finally moves it to Done.
   \item \textbf{Auto-archive Done items after 14 days.}\\
         Workflows \code{->} \textbf{Auto-archive items} \code{->} Edit. When Status
         is Done and untouched for 14 days, archive it. Enable.\\
@@ -719,6 +750,145 @@ just going quiet.
 
 % ===========================================================================
 \part{Running Sprints and Daily Use}
+
+\chapter{How to use it: your first day on the board}
+
+The board is built, the fields are in place, the views exist. Now: what do you
+actually \emph{do} with it? This chapter is the hands-on part. If you have read
+nothing else, read this. Everything after it goes deeper on the same actions.
+
+Everything below happens in the browser, on the project board. You do not need the
+command line, a token, or any of the configuration files to do daily work --- those
+are for the person who \emph{sets up} the board, not the person who \emph{uses} it.
+
+\section{Open the board and get your bearings}
+
+Open the project. Along the top you will see tabs --- these are the \textbf{views}
+from the last part. You will live in a few of them:
+
+\begin{center}
+\begin{tabular}{@{}p{3.4cm}p{9.8cm}@{}}
+\toprule
+\textbf{Tab} & \textbf{Open it when you want to\ldots} \\
+\midrule
+Current Sprint & See this fortnight's committed work as a checklist --- your day-to-day home. \\
+Workload & See who is carrying what, grouped by person. Find your own name. \\
+By Team & See everything your team owns, in one place. \\
+Triage Queue & Sort brand-new issues nobody has classified yet. \\
+By Type & Scan all the bugs, or all the epics, at once. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{plainenglish}
+A view never hides or changes an issue --- it is just a lens. The same card can show
+up in Current Sprint, Workload, and By Team at once; they are three windows onto one
+pile, not three piles. Switching tabs never moves anything.
+\end{plainenglish}
+
+\section{Find the work that is yours}
+
+Open \textbf{Workload} and look for your name --- your issues are grouped under it.
+Nothing there? Then you have not been given a sprint issue yet; ask at planning, or
+pull one from \textbf{Current Sprint} that has no owner. If you do not have a name
+column at all, you have not been added to the board yet --- see the interns chapter
+in Part~V for the one-time invite.
+
+\section{Pick up an issue and move it across}
+
+This is the single most common thing you will do. An issue moves left-to-right along
+\fieldname{Status} as you work it:
+
+\begin{enumerate}[leftmargin=1.7em,itemsep=4pt]
+  \item \textbf{Take it.} Open the card, set yourself as owner (the
+        \fieldname{Assignees} field, or the custom Owner field --- see Part~V), and
+        drag it from \textbf{Ready} to \textbf{In Progress}.
+  \item \textbf{Work it.} Write the code, open a pull request. When the PR is up for
+        review, move the card to \textbf{In Review}.
+  \item \textbf{Merge it.} When the PR merges, the board moves the card to
+        \textbf{Live in Dev} for you (that is one of the five automations). You do
+        not drag it yourself.
+  \item \textbf{Let it ride the tail.} From there the release pipeline carries it on
+        through \textbf{QA / Verify}, \textbf{Ready for Test}, \textbf{Ready for
+        Prod}, and \textbf{In Production} as it is promoted through the conda
+        channels. Closing the issue is what finally sends it to \textbf{Done}.
+  \item \textbf{Stuck?} If something outside your control is in the way, move the
+        card to \textbf{Blocked} and write \emph{what} you are waiting on in a
+        comment. If the team has deliberately parked it, use \textbf{On-Hold}.
+\end{enumerate}
+
+\begin{gotcha}
+\textbf{Do not skip a card straight to Done because ``the code is written.''} On this
+board Status is one honest line from idea to production. ``Written and merged'' is
+\textbf{Live in Dev}, not Done. Done means it has been through the release tail and
+closed. If you jam things to Done early, the Release pipeline view goes blind and
+nobody can tell what has actually shipped.
+\end{gotcha}
+
+\section{File a new issue}
+
+Found a bug, or thought of work that needs doing? Open an issue in the source
+repository (not on the board --- the board pulls it in automatically). Give it a
+clear title and a body that says, for a bug, \emph{what you did}, \emph{what you
+expected}, and \emph{what happened instead}. Within seconds it appears on the board
+in the \textbf{Triage} column, waiting to be classified. That is the automation
+doing its job; you do not add it to the board by hand.
+
+\section{Fill in the fields (classify a card)}
+
+When you triage or pick up a card, set its fields. This is what turns a flat list
+back into a managed project. The ones you touch most:
+
+\begin{center}
+\begin{tabular}{@{}p{2.6cm}p{11cm}@{}}
+\toprule
+\textbf{Field} & \textbf{What to set} \\
+\midrule
+\fieldname{Type} & What kind of work it is: Bug, Feature, Story, Task, \ldots \\
+\fieldname{Severity} & For bugs only: S1 (wrong answer shown as right, or a crash) down to S4 (cosmetic). \\
+\fieldname{Area} & Which subsystem(s) it touches --- pick more than one if it spans two. \\
+\fieldname{Team} & Which team owns it. \\
+\fieldname{Epic} & Which big outcome it belongs to. \\
+\fieldname{Size} & Rough effort. Anything \textbf{XL} should be split, not started. \\
+\fieldname{Priority} & How soon: P0 now, down to P3 backlog. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{plainenglish}
+You do not have to fill in every field the moment an issue is born. Triage sets the
+few that matter (Type, Severity, Area, an owner); the rest can wait until the issue
+is actually pulled into a sprint. An empty \fieldname{Points} or \fieldname{Target
+date} is not a mistake --- it just means ``not decided yet.''
+\end{plainenglish}
+
+\section{A worked first hour}
+
+Say you are handed issue \#312, ``girder self-weight looks wrong in the report.''
+
+\begin{enumerate}[leftmargin=1.7em,itemsep=3pt]
+  \item It is sitting in \textbf{Triage}. You open it and classify: \fieldname{Type}
+        = Bug, \fieldname{Severity} = S1 (a wrong structural number shown as if
+        correct), \fieldname{Area} = \code{reports} and \code{design-core},
+        \fieldname{Team} = Reports \& BOQ, \fieldname{Epic} = E1
+        result-traceability. You set yourself as owner.
+  \item At planning it is pulled into the sprint and you drag it to
+        \textbf{In Progress}.
+  \item You find the bad key binding, fix it, and open a PR. You move the card to
+        \textbf{In Review}.
+  \item The PR merges; the board moves \#312 to \textbf{Live in Dev} on its own.
+  \item It rides the release tail to \textbf{In Production}. You close the issue and
+        it lands in \textbf{Done} --- fixed, shipped, and traceable to the clause it
+        implements.
+\end{enumerate}
+
+\begin{verifybox}
+You have used the board correctly if, at any moment, someone can open it and answer
+three questions without asking you: \emph{what are you working on} (your card in
+In~Progress), \emph{is it stuck} (Blocked, with a named reason), and \emph{has it
+shipped} (its place in the release tail). If all three are answerable from the board
+alone, you are doing it right.
+\end{verifybox}
 
 \chapter{The fortnightly rhythm}
 
@@ -1120,8 +1290,8 @@ project get its own board without copying the whole schema (see the next chapter
 \textbf{File} & \textbf{Controls} \\
 \midrule
 \endhead
-\code{config/base.yml} & \textbf{Shared across every project}: the \code{type:} and \code{sev:} labels, all the board fields (Status, Sprint, Priority, \ldots, Deploy stage), the sprint schedule, and the eight views. \\
-\code{config/software/osdagbridge.yml} & \textbf{This project only}: its display name, its \code{area:} labels, its epics, its \code{source\_repos}, and its conda channels. The board's Epic and Area options are \emph{derived} from here, so you never write them twice. \\
+\code{config/base.yml} & \textbf{Shared across every project}: the \code{type:} and \code{sev:} labels, all the board fields (Status, Sprint, Type, Priority, \ldots, Team), the sprint schedule, and the nine views. \\
+\code{config/software/osdagbridge.yml} & \textbf{This project only}: its display name, its \code{area:} labels, its epics, its \code{teams:}, its \code{source\_repos}, and its conda channels. The board's Epic, Area, and Team options are \emph{derived} from here, so you never write them twice. \\
 \code{config/rollup.yml} & The ``All Projects'' roll-up board and its \code{Software} field options. \\
 \code{docs/pm/SOP-01..10} & The terse checklists this handbook expands on --- including SOP-09 (customising) and SOP-10 (standing up on osdag-admin). \\
 \code{docs/pm/BOARD-SETUP.md} & The five manual workflow clicks, as a checklist. \\
@@ -1288,10 +1458,12 @@ project's own. That is what ``one engine, many boards'' means in practice.
 \begin{center}
 \begin{tcolorbox}[enhanced,colback=white,colframe=brandblue,title=\textbf{The whole
 system on one page},fonttitle=\bfseries,width=\textwidth,arc=2mm]
-\textbf{Status columns:} Backlog \code{->} Triage \code{->} Ready \code{->} In
-Progress \code{->} In Review \code{->} Merged \code{->} QA / Verify \code{->} Done.
-\emph{Blocked} waits to the side and names its blocker. \emph{Deploy stage} is a
-separate axis for shipped code.\\[4pt]
+\textbf{Status columns (one axis):} Backlog \code{->} Triage \code{->} Ready
+\code{->} In Progress \code{->} In Review \code{->} Live in Dev \code{->} QA /
+Verify \code{->} Ready for Test \code{->} Ready for Prod \code{->} In Production
+\code{->} Done. \emph{Blocked} and \emph{On-Hold} wait to the side; a blocked card
+names its blocker. The release stages are the tail of Status --- there is no
+separate deploy column.\\[4pt]
 \textbf{Triage = three decisions + an owner:} type; severity (bugs); area(s); who
 owns it and which epic.\\[4pt]
 \textbf{Severity:} S1 wrong-number-shown-as-right / crash; S2 unusable feature;
@@ -1308,7 +1480,7 @@ verified against the report.\\[4pt]
 
 \vfill
 \begin{center}\small\itshape
-OsdagBridge Project Management Handbook, version 1.0. Built from the SOPs and board
+OsdagBridge Project Management Handbook, version 1.2. Built from the SOPs and board
 configuration in \code{docs/pm/} and \code{config/}. Keep it next to the board.
 \end{center}
 
