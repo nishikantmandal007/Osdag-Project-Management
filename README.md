@@ -43,6 +43,13 @@ tests/           pytest for the reconciler itself.
 
 ## Start here
 
+New to project management, or onboarding an intern? Read the
+**[PM Handbook (PDF)](docs/pm/handbook/osdagbridge-pm-handbook.pdf)** — a
+start-from-zero guide to epics, sprints, and the board, including a step-by-step
+board setup and the three open-source questions (tampering, intern access, and
+whether the automations were necessary). Source and build script live in
+[`docs/pm/handbook/`](docs/pm/handbook/).
+
 **[`docs/pm/README.md`](docs/pm/README.md)** is the front door — the work-item
 hierarchy, label taxonomy, board views, and the SOPs for triage, sprints, epics,
 and operating the reconciler. If you're standing the board up on another repo,

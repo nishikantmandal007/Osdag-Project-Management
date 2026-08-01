@@ -3,6 +3,13 @@
 The front door. If you are filing an issue, running a sprint, or operating the
 board, start here and follow the link to the relevant SOP.
 
+**New here, or new to project management?** Read the
+**[PM Handbook (PDF)](handbook/osdagbridge-pm-handbook.pdf)** first. It teaches
+epics, sprints, and the board from zero, walks through standing the board up step
+by step, and answers the three open-source questions (can outsiders tamper with
+it, how interns join without repository access, were the automations necessary).
+The SOPs below are the terse reference once you know the ropes.
+
 The [top-level README](../../README.md) explains *why this repo exists*. This
 document explains *how work flows through it*.
 
