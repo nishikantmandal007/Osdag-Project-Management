@@ -32,7 +32,7 @@ EXPECTED_FIELDS = [
 ]
 EXPECTED_VIEWS = [
     "Current Sprint", "Triage Queue", "Backlog Grooming", "Epic Roadmap",
-    "Release v1.0-GA", "By Owner", "Release pipeline",
+    "Release v1.0-GA", "By Owner", "Release pipeline", "Workload",
 ]
 
 

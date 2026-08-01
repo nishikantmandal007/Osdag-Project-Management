@@ -65,12 +65,38 @@ different numbers. To cut a mirror-era board over:
    their live issues onto the board alongside the old copies.
 2. Enable per-repo Auto-add for each source repo.
 3. Treat the mirrored copies as historical staging data: leave them as a frozen
-   record, or close/remove them by hand. The reconciler **never** closes them for
-   you — closing someone's issue is exactly the irreversible act the system
-   avoids.
+   record, or remove them by hand. The reconciler **never** closes or deletes
+   them for you — doing that to someone's issue is exactly the irreversible act
+   the system avoids.
 
 For a fresh project there is no cutover: its board is direct-from-repo from the
 first `--populate`.
+
+### Removing the old mirrored copies (optional, manual)
+
+The mirror-era copies live **in the PM repo** and each carries a
+`<!-- src:OWNER/REPO#N -->` marker in its body — that's how to tell a copy from a
+real issue. Removal is deliberately manual and **not scripted**: deleting a GitHub
+issue is irreversible and needs repo **Admin**, so a human does it with eyes open.
+
+To find them:
+
+```
+gh issue list -R nishikantmandal007/osdagbridge-pm --state all --limit 200 \
+  --search '"<!-- src:" in:body' --json number,title
+```
+
+Then, once you've confirmed the list is only mirror copies:
+
+- **Keep as history (recommended default):** do nothing. They stay as a frozen
+  staging record. New work is tracked directly on the source repos.
+- **Close them:** `gh issue close <N> -R nishikantmandal007/osdagbridge-pm` per
+  number — reversible, keeps the thread.
+- **Delete them:** Issue → **⋯** → **Delete issue** in the UI (repo Admin only),
+  or `gh issue delete <N> -R … --yes`. Irreversible; only for a demo repo you own.
+
+Do this against the **PM repo**, never a source repo — the source repos hold the
+real issues.
 
 ---
 

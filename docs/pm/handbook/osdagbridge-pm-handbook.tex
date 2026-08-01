@@ -103,9 +103,10 @@ Read it front to back once. After that, keep it next to the board.
 \end{minipage}
 
 \vfill
-{\large Version 1.0 \quad|\quad 1 August 2026}\\[4pt]
+{\large Version 1.1 \quad|\quad 1 August 2026}\\[4pt]
+{\small Part of \textbf{Osdag Project Management} --- one engine, many FOSSEE-project boards.}\\[2pt]
 {\small Repository: \code{nishikantmandal007/osdagbridge-pm}}\\[2pt]
-{\small Board: project \#3, ``OsdagBridge Delivery''}
+{\small Board: project \#3, ``OsdagBridge''}
 \vspace*{1.5cm}
 \end{titlepage}
 
@@ -142,7 +143,7 @@ is assumed. Every term is defined the first time it appears.
 
 \begin{notebox}
 This handbook is the friendly, long-form guide. The short checklists it is based
-on live next to it as \code{SOP-01} through \code{SOP-08} and
+on live next to it as \code{SOP-01} through \code{SOP-10} and
 \code{BOARD-SETUP.md}. When this book says ``see the triage SOP,'' it means one of
 those files. You never need them to follow along here, but they are the terse
 reference once you know the ropes.
@@ -531,7 +532,8 @@ your own clicks for the rest. Both are described below.
   \item On GitHub, go to your account's \textbf{Projects} tab and click
         \textbf{New project}.
   \item Choose the \textbf{Table} template (you will add views later) and name it
-        \textbf{OsdagBridge Delivery}.
+        after the project --- \textbf{OsdagBridge} (the board title is the
+        overlay's \code{display\_name}).
   \item Note the number it is given (ours is \#3) and its address. You will point
         the automation at this.
 \end{enumerate}
@@ -542,20 +544,21 @@ next two chapters give it columns (fields) and saved filters (views). After that
 becomes a board.
 \end{plainenglish}
 
-\chapter{Add the eleven fields}
+\chapter{Add the board fields}
 
 A \textbf{field} is a column: one piece of structured information every card can
-carry. We use eleven. For each one below you get what it is, why it exists, its
+carry. We use twelve. For each one below you get what it is, why it exists, its
 type, and its values.
 
 \begin{notebox}
 Three of these (\fieldname{Sprint}, \fieldname{Start date}, \fieldname{Target
 date}) can only be created through the automation, not the click menu, at our
-tool versions. The bootstrap script (\code{python -m pm.bootstrap\_board}) builds
-all eleven from \code{config/project.yml} in one shot, and running it twice changes
-nothing the second time. If you are doing it by hand, create the eight
-single-select and number fields yourself and let the script add the three special
-ones.
+tool versions. The bootstrap script (\code{python -m pm.bootstrap\_board
+--software osdagbridge}) builds them all from \code{config/base.yml} (the shared
+schema) merged with the project's \code{config/software/osdagbridge.yml} (its
+areas and epics) in one shot, and running it twice changes nothing the second
+time. If you are doing it by hand, create the single-select and number fields
+yourself and let the script add the three special ones.
 \end{notebox}
 
 \begin{center}
@@ -564,7 +567,7 @@ ones.
 \textbf{Field} & \textbf{Type} & \textbf{Why it exists / values} \\
 \midrule
 \endhead
-Status & single-select & Which column the card is in. Backlog, Triage, Ready, In Progress, In Review, QA / Verify, Blocked, Done. \\
+Status & single-select & Which column the card is in. Backlog, Triage, Ready, In Progress, In Review, Merged, QA / Verify, Blocked, Done. \\
 Sprint & iteration (14 days) & Which fortnight this is committed to. A timeline field; automation-only. \\
 Priority & single-select & How soon: P0-now, P1-sprint, P2-next, P3-backlog. \\
 Severity & single-select & How bad: S1 to S4 (bugs). \\
@@ -573,11 +576,21 @@ Points & number & Optional numeric size: 1, 2, 3, 5, 8. \\
 Epic & single-select & Which big outcome (E1 to E10). \\
 Area & \textbf{multi-select} & Which subsystems. Multi-valued on purpose: issues span two. \\
 Target release & single-select & v1.0-GA, v1.1, v2.0, future. \\
+Deploy stage & single-select & Where a \emph{merged} item is in the release channels: Dev, Test, Ready for Prod, In Production (blank = not deployed). A separate axis from Status. \\
 Start date & date & When work began. Feeds the roadmap view. \\
 Target date & date & When it is due. Feeds the roadmap view. \\
 \bottomrule
 \end{longtable}
 \end{center}
+
+\begin{plainenglish}
+\textbf{Status} and \textbf{Deploy stage} answer two different questions.
+Status is ``is the code written and merged?'' and it ends at \textbf{Merged}
+(then QA/Verify, then Done). Deploy stage is ``is the merged code \emph{shipped},
+and how far?'' --- it walks the conda release channels from Dev to In Production.
+An item can be Done on Status while still sitting at Test on Deploy stage. Keeping
+them apart stops ``written'' and ``shipped'' from fighting over one column.
+\end{plainenglish}
 
 \begin{gotcha}
 \textbf{Area is multi-select, not single-select, and that choice matters.} Most real
@@ -593,10 +606,10 @@ out and the Epic Roadmap view looks broken for no obvious reason. This is a clas
 half-hour of confusion; the fix is simply to add both date fields.
 \end{gotcha}
 
-\chapter{Build the six views}
+\chapter{Build the eight views}
 
 A \textbf{view} is a saved arrangement: a layout plus a filter, so a specific
-audience sees exactly the cards they care about. All six are created by the
+audience sees exactly the cards they care about. All eight are created by the
 automation, because the click menu cannot save a filter with a new view at our tool
 versions. Here is each one and, just as important, when it is \emph{supposed} to
 look empty.
@@ -613,6 +626,8 @@ Backlog Grooming & Table & Open, non-epic issues with no sprint & Nothing is un-
 Epic Roadmap & Roadmap & The epics on a timeline & Never, once date fields exist \\
 Release v1.0-GA & Board & Everything aimed at the next release & \\
 By Owner & Board & This sprint's work grouped by person & No sprint work yet \\
+Release pipeline & Board & Merged items moving through the conda channels & Nothing merged yet \\
+Workload & Board & Who is carrying the most this sprint & No sprint work yet \\
 \bottomrule
 \end{longtable}
 \end{center}
@@ -623,6 +638,16 @@ planned a sprint and dragged issues into it, that view is supposed to be empty.
 People see it on day one and assume something failed. Nothing failed. Part~IV fills
 it.
 \end{notebox}
+
+\begin{gotcha}
+\textbf{Two of the views need one manual toggle each.} The automation sets each
+view's \emph{filter}, but GitHub exposes no way for a program to set a view's
+\emph{grouping}. So after setup, open \textbf{Release pipeline}, click \textbf{\ldots}
+\code{->} \textbf{Group by} \code{->} \textbf{Deploy stage}; and open
+\textbf{Workload}, \textbf{\ldots} \code{->} \textbf{Group by} \code{->}
+\textbf{Assignees} (or a custom Owner field --- see the interns chapter in Part~V).
+Same class of one-time click as the five workflows in the next chapter.
+\end{gotcha}
 
 \chapter{Turn on the five automations you click yourself}
 
@@ -812,8 +837,10 @@ back.
 % ===========================================================================
 \part{Running It in the Open}
 
-OsdagBridge is open source, and the board is public. That raises three fair
-questions. Here are straight answers.
+OsdagBridge is open source, and the board is public. That raises a handful of fair
+questions --- can outsiders tamper with it, how do interns join without repository
+access, who is allowed to change or delete work, how do you see who is overloaded,
+and were all those robots really necessary. Here are straight answers.
 
 \chapter{Can outsiders tamper with our board?}
 
@@ -912,6 +939,93 @@ Option~B is a quick bridge if you specifically want the built-in avatars in the
 meantime.
 \end{plainenglish}
 
+\chapter{Who can change what: leads, contributors, and deletion}
+
+The model the team asked for is: \textbf{everyone can see the board, everyone can
+file an issue, only leads can drive the board, and nobody can quietly delete
+someone's work.} GitHub gives you exactly this, because it keeps three separate
+permissions apart. The trick is knowing which lever does which.
+
+\begin{center}
+\begin{longtable}{@{}p{3.4cm}p{5.4cm}p{4.2cm}@{}}
+\toprule
+\textbf{Who wants to\ldots} & \textbf{Can they, by default?} & \textbf{Where it is controlled} \\
+\midrule
+\endhead
+See the board & Yes, anyone, if the project is \textbf{Public} (read-only) & Board Settings \code{->} Danger zone \code{->} Visibility \\
+\addlinespace
+Move cards, set fields & Only project collaborators with \textbf{Write}/\textbf{Admin} & Board Settings \code{->} Manage access \\
+\addlinespace
+Open an issue & \textbf{Anyone} with a GitHub account, on a public repo & Repo settings (issues can be disabled --- rarely wanted) \\
+\addlinespace
+Close / reopen / edit an issue & Repo \textbf{Write} (and the author, on their own) & Repo \code{->} Settings \code{->} roles \\
+\addlinespace
+\textbf{Delete} an issue & Only repo \textbf{Admins} & Repo \code{->} Settings \code{->} roles \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Give the leads the board, not the repo}
+This is the key move. \emph{Project access is separate from repository access}, so
+a team lead can have full control of the sprint board \textbf{without any write
+access to the code.} On the board: \textbf{\ldots} \code{->} Settings \code{->}
+\textbf{Manage access} \code{->} \textbf{Invite collaborators} \code{->} add each
+lead with the \textbf{Write} role. They can now move cards and set
+Status/Sprint/Priority/Owner. Reserve \textbf{Admin} for whoever also manages the
+project's settings and the board workflows.
+
+\section{Everyone else needs no setup}
+Because the source repositories are public, anyone can already \emph{open} an
+issue --- it lands on the board through the Auto-add workflow. Contributors do
+\textbf{not} need any board access to file work; they only need it to \emph{edit
+the board}, which is precisely what you are withholding. So ``anyone can add,
+only leads can arrange'' is the default state, not something you configure.
+
+\begin{gotcha}
+\textbf{``Add'' and ``delete'' are deliberately different powers.} Filing an issue
+is open to the world; \emph{deleting} one needs repo \textbf{Admin}. Repo Write can
+close, reopen, and edit but cannot delete. So keep the Admin role to the two or
+three people who actually own each repository, and ``everyone can add, nobody can
+delete'' holds by itself. The nightly reconciler is the backstop: if even a
+trusted lead makes a mistaken change, it surfaces in the ``Board drift detected''
+issue rather than passing unnoticed.
+\end{gotcha}
+
+\begin{plainenglish}
+Picture a public noticeboard in a town hall. Anyone can walk in and pin up a
+notice (open an issue). Only the staff on rota can rearrange the board into
+sections (leads with project Write). And only the hall manager can take a notice
+down for good (repo Admin deletes). Three different keys, three different people
+--- which is exactly why no single role can both run the board and quietly erase
+history.
+\end{plainenglish}
+
+\chapter{Who is carrying the most: the Workload view}
+
+At sprint review you want one glance that answers ``who is overloaded and who has
+room?'' That is the \textbf{Workload} view. It ships with the board (filtered to
+the current sprint's open items); you turn its grouping on once, by hand, because
+GitHub has no programming interface for a view's grouping.
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=3pt]
+  \item Open the \textbf{Workload} tab.
+  \item \textbf{\ldots} \code{->} \textbf{Group by} \code{->} \textbf{Assignees}
+        (or \textbf{Owner}, if you use the custom Owner field from the interns
+        chapter).
+\end{enumerate}
+
+Each person becomes a column and the column's height is their open load this
+sprint. The tallest column is the most-loaded person; an empty column is someone
+with capacity. Use it in the review to rebalance before the next planning pull.
+
+\begin{notebox}
+For a \emph{trend} rather than a snapshot, the board's \textbf{Insights} tab
+(top-right) charts item counts by assignee over time --- also a UI-only feature.
+And if your team cannot use GitHub's native Assignees (interns without repo
+access, from the previous chapter), group Workload by the custom \textbf{Owner}
+field instead; it reads the same.
+\end{notebox}
+
 \chapter{Were all those automations necessary?}
 
 Fair question. The honest answer: \textbf{one of them is load-bearing, the rest earn
@@ -930,7 +1044,7 @@ Board bootstrap (\code{pm-bootstrap-board}) & Builds the whole board from config
 \addlinespace
 Epic creation (\code{pm-epics}) & Creates the epic issues and sub-epics from config & One-time; same reproducibility argument. \\
 \addlinespace
-Seeder (\code{pm-seed}) & Migrated the 59 existing issues in, once & Necessary once, to avoid re-typing a backlog by hand. \\
+Board populate (\code{pm-bootstrap-board --populate}) & Adds the source repo's open issues onto the board, in place & One-time backfill; replaces the retired ``seeder'' that used to copy issues into the PM repo. \\
 \addlinespace
 The five manual workflows & Auto-add, close-to-Done, archive, triage-on-arrival & \textbf{Necessary.} These are what let the board maintain itself. \\
 \addlinespace
@@ -996,22 +1110,34 @@ The board is driven by configuration, not clicks. When you want to change the
 \emph{structure} of the system, you edit a file and let the reconciler apply it,
 rather than editing the board directly. Here is the map.
 
+Configuration lives in two layers that the loader stitches together: one shared
+base, and one small file per project. That split is what lets a second FOSSEE
+project get its own board without copying the whole schema (see the next chapter).
+
 \begin{center}
-\begin{longtable}{@{}p{4.2cm}p{9.0cm}@{}}
+\begin{longtable}{@{}p{4.6cm}p{8.6cm}@{}}
 \toprule
 \textbf{File} & \textbf{Controls} \\
 \midrule
 \endhead
-\code{config/labels.yml} & Every label: the \code{type:}, \code{sev:}, \code{area:} families, and how old labels map to new ones. \\
-\code{config/epics.yml} & The ten epics and E1's six sub-epics. \\
-\code{config/project.yml} & The board: all eleven fields and six views. \\
-\code{config/seed.yml} & The one-time import of existing issues. \\
-\code{docs/pm/SOP-01..08} & The terse checklists this handbook expands on. \\
+\code{config/base.yml} & \textbf{Shared across every project}: the \code{type:} and \code{sev:} labels, all the board fields (Status, Sprint, Priority, \ldots, Deploy stage), the sprint schedule, and the eight views. \\
+\code{config/software/osdagbridge.yml} & \textbf{This project only}: its display name, its \code{area:} labels, its epics, its \code{source\_repos}, and its conda channels. The board's Epic and Area options are \emph{derived} from here, so you never write them twice. \\
+\code{config/rollup.yml} & The ``All Projects'' roll-up board and its \code{Software} field options. \\
+\code{docs/pm/SOP-01..10} & The terse checklists this handbook expands on --- including SOP-09 (customising) and SOP-10 (standing up on osdag-admin). \\
 \code{docs/pm/BOARD-SETUP.md} & The five manual workflow clicks, as a checklist. \\
 \code{docs/pm/PROMOTION.md} & The plan for moving the board to \code{osdag-admin}. Still needs named human owners. \\
 \bottomrule
 \end{longtable}
 \end{center}
+
+\begin{notebox}
+\textbf{The old single-file layout is gone.} Earlier versions kept
+\code{config/labels.yml}, \code{epics.yml}, \code{project.yml} and a
+\code{seed.yml}. Those were merged into \code{base.yml} + the per-project overlay,
+and the copy-issues-in ``seeder'' was retired in favour of tracking each repo's
+issues \emph{in place} (see the intake SOP). If you find a reference to those old
+files anywhere, it predates this handbook.
+\end{notebox}
 
 \begin{notebox}
 Changing configuration is reviewed like code. A change to the taxonomy goes through
@@ -1020,6 +1146,121 @@ reconciler never deletes anything on its own; if the board has something the con
 does not, it \emph{reports} it and waits for a human, because some deletions (a
 label coming off every issue that used it) cannot be undone.
 \end{notebox}
+
+\chapter{Changing the board: the manual way and the YAML way}
+
+Almost everything about the board can be changed \textbf{two ways}, and they
+coexist safely:
+
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt]
+  \item \textbf{The YAML way} --- edit a file in \code{config/}, open a pull
+        request, run the workflow. Reviewable, repeatable, and it survives a
+        rebuild from scratch. This is how the board is promoted to another repo
+        unchanged.
+  \item \textbf{The manual way} --- click it in GitHub. Instant, no pull request,
+        but invisible to the reconciler and lost if the board is ever rebuilt from
+        config.
+\end{itemize}
+
+\begin{plainenglish}
+The golden rule is what makes the two safe together: \textbf{the reconciler never
+deletes.} Anything you add by hand that the config does not know about is
+\emph{reported} as an extra, never removed. Anything the config declares that is
+missing gets added. So you can hand-tweak freely and write it into YAML later, or
+never --- nothing you clicked gets clobbered except the few fields config
+explicitly owns (Status options, the sprint schedule, each select field's
+options, and label colours).
+\end{plainenglish}
+
+\begin{center}
+\begin{longtable}{@{}p{3.2cm}p{4.6cm}p{4.6cm}@{}}
+\toprule
+\textbf{Change} & \textbf{YAML way} & \textbf{Manual way} \\
+\midrule
+\endhead
+A label or area & \code{base.yml} (type/sev) or the overlay (area), then \code{pm-reconcile} & Issues \code{->} Labels \code{->} New (reported as an extra until you add it to config) \\
+\addlinespace
+An epic & overlay \code{epics:}, then \code{pm-epics} & Open an issue with \code{<!--~pm-epic:KEY~-->} in the body; the reconciler adopts it \\
+\addlinespace
+A board field or option & \code{base.yml} \code{fields:}, then \code{pm-bootstrap-board} & Board \code{->} + \code{->} New field \\
+\addlinespace
+Sprint length or start & \code{base.yml} Sprint field, or \code{--sprint-start} & Board \code{->} Sprint field \code{->} Edit iterations \\
+\addlinespace
+A whole new project & new \code{config/software/<name>.yml} & --- (config is the only sane path) \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+The full worked examples live in \code{SOP-09}. Two of them matter enough to spell
+out here.
+
+\section{Changing the sprint length (7, 14, or 15 days)}
+
+Sprints are two weeks by default. The length is a single number ---
+\code{duration\_days} --- on the Sprint field in \code{config/base.yml}:
+
+\begin{lstlisting}
+- name: Sprint
+  type: ITERATION
+  duration_days: 14        # 7 = weekly, 15 = a fortnight-plus
+  start_date: "2026-08-03"
+\end{lstlisting}
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=3pt]
+  \item Change \code{duration\_days} --- \code{7} for weekly sprints, \code{15}
+        for slightly longer ones.
+  \item Open a pull request, merge it.
+  \item Run \textbf{Bootstrap board} (\code{pm-bootstrap-board}). GitHub
+        regenerates the numbered iterations \emph{forward} from \code{start\_date},
+        so this reshapes future sprints.
+\end{enumerate}
+
+\begin{notebox}
+\textbf{Where the numbering \emph{starts} is separate from how \emph{long} each
+sprint is.} To move where sprint 1 begins --- for a fresh demo, ``start today''
+--- do \emph{not} edit \code{start\_date} by hand. Run bootstrap with
+\code{--sprint-start today} (or a specific \code{--sprint-start YYYY-MM-DD}). It
+sets only the first iteration's start; the length is untouched. That is exactly
+what a first setup on \code{osdag-admin} uses, so the demo's first sprint begins on
+the day you stand it up (see \code{SOP-10}).
+\end{notebox}
+
+The manual alternative is Board \code{->} \textbf{Sprint} field \code{->}
+\textbf{Edit iterations}, changing the duration or adding iterations by hand. It is
+instant, but the config's \code{duration\_days} still wins the next time anyone runs
+Bootstrap board --- so if you want a length change to stick, change both, or just
+change the YAML.
+
+\section{Adding a whole new project}
+
+This is the payoff of the base-plus-overlay split: a second board ---
+\textbf{Osdag}, \textbf{Osdag-web}, any FOSSEE project --- is essentially one new
+file.
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=3pt]
+  \item Copy \code{config/software/osdagbridge.yml} to
+        \code{config/software/<name>.yml}.
+  \item Edit its \code{display\_name}, \code{source\_repos}, \code{area\_labels},
+        \code{epics}, and \code{conda\_channels}. Leave \code{board\_number} blank
+        until the board exists.
+  \item Add \code{<name>} to \code{config/rollup.yml} so it appears on the ``All
+        Projects'' roll-up.
+  \item Open a pull request, merge it.
+  \item Run \textbf{Bootstrap board} with \code{--software <name>} --- it creates
+        the board, links every source repo, and builds the fields and views. Add
+        \code{--sprint-start today} for a demo.
+  \item Run \textbf{Epics} and \textbf{Reconcile} with the same
+        \code{--software <name>}.
+  \item Do the manual clicks from \code{BOARD-SETUP.md}: one \textbf{Auto-add} per
+        source repo, plus the workflow rules.
+\end{enumerate}
+
+\begin{plainenglish}
+Nothing about the engine changes to add a project --- same commands, a different
+\code{--software} name. The shared \code{base.yml} supplies the labels, fields,
+sprint schedule, and views; the overlay supplies only what is genuinely this
+project's own. That is what ``one engine, many boards'' means in practice.
+\end{plainenglish}
 
 \chapter{Where to go next}
 
@@ -1030,6 +1271,11 @@ label coming off every issue that used it) cannot be undone.
         in each ``Check it worked'' box.
   \item Running triage or planning? Parts~IV, and the matching \code{SOP-01} and
         \code{SOP-03} for the terse version.
+  \item Customising the board --- a new label, a new epic, a different sprint
+        length, or a whole new project? The chapter above, and \code{SOP-09} for
+        the full manual-vs-YAML worked examples.
+  \item Standing the board up on \code{osdag-admin}, with access control for leads
+        and interns? \code{SOP-10} is the click-by-click runbook.
   \item Thinking about promotion to an organisation? Read \code{PROMOTION.md}. It is
         the one genuinely unfinished piece, and it needs people, not code: a named
         contact, an owner for the canonical tracker, and a decision about the
@@ -1043,8 +1289,9 @@ label coming off every issue that used it) cannot be undone.
 \begin{tcolorbox}[enhanced,colback=white,colframe=brandblue,title=\textbf{The whole
 system on one page},fonttitle=\bfseries,width=\textwidth,arc=2mm]
 \textbf{Status columns:} Backlog \code{->} Triage \code{->} Ready \code{->} In
-Progress \code{->} In Review \code{->} QA / Verify \code{->} Done. \emph{Blocked}
-waits to the side and names its blocker.\\[4pt]
+Progress \code{->} In Review \code{->} Merged \code{->} QA / Verify \code{->} Done.
+\emph{Blocked} waits to the side and names its blocker. \emph{Deploy stage} is a
+separate axis for shipped code.\\[4pt]
 \textbf{Triage = three decisions + an owner:} type; severity (bugs); area(s); who
 owns it and which epic.\\[4pt]
 \textbf{Severity:} S1 wrong-number-shown-as-right / crash; S2 unusable feature;

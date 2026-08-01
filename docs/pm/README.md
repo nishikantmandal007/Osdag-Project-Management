@@ -132,5 +132,7 @@ conda release pipeline (see [SOP-06](SOP-06-seeding-promotion.md) / epic E6).
 | [SOP-06](SOP-06-seeding-promotion.md) | Direct-from-repo intake and promoting to osdag-admin |
 | [SOP-07](SOP-07-issue-lifecycle.md) | Filing a good issue; Definition of Ready / Done |
 | [SOP-08](SOP-08-board-views.md) | Board fields and view filters reference |
+| [SOP-09](SOP-09-customizing.md) | Customizing the board — manual UI *and* YAML, with tutorials |
+| [SOP-10](SOP-10-osdag-admin-setup.md) | Standing the board up on osdag-admin, with access control |
 | [BOARD-SETUP](BOARD-SETUP.md) | **The 5 manual clicks the API can't do** |
 | [PROMOTION](PROMOTION.md) | Governance: moving the canonical tracker (unowned — T15) |

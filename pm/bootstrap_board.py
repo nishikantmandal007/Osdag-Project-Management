@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import date
 
 from .config import ConfigError, load_merged
 from .project import (
@@ -391,6 +392,33 @@ def introspect_schema() -> int:
     return 0
 
 
+def _apply_sprint_start(config: dict, value: str) -> str:
+    """Override the Sprint iteration field's start_date in a board config.
+
+    ``value`` is an ISO date (``YYYY-MM-DD``) or the literal ``today``. This is
+    how a demo board's first sprint begins on the day it is stood up rather than
+    on the date frozen in ``config/base.yml``. Sprint *length* is unchanged —
+    only where the numbering starts moves. Returns the resolved date string.
+
+    Raises ProjectError on a malformed date or a board with no ITERATION field.
+    """
+    if value == "today":
+        resolved = date.today().isoformat()
+    else:
+        try:
+            resolved = date.fromisoformat(value).isoformat()
+        except ValueError as exc:
+            raise ProjectError(
+                f"--sprint-start must be YYYY-MM-DD or 'today', got {value!r}"
+            ) from exc
+
+    for field in config["fields"]:
+        if field.get("type") == "ITERATION":
+            field["start_date"] = resolved
+            return resolved
+    raise ProjectError("this board has no ITERATION (Sprint) field to start")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="pm.bootstrap_board", description=__doc__)
     parser.add_argument("--owner", required=True, help="user or org login that owns the board")
@@ -427,6 +455,12 @@ def main(argv: list[str] | None = None) -> int:
         metavar="NAME",
         help="build the board from base.yml + config/software/NAME.yml",
     )
+    parser.add_argument(
+        "--sprint-start",
+        metavar="DATE",
+        help="date the first sprint starts (YYYY-MM-DD or 'today'); "
+             "default: the value in config. Use 'today' for a demo board.",
+    )
     args = parser.parse_args(argv)
 
     if args.check:
@@ -452,6 +486,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     config = merged.board
+    if args.sprint_start:
+        try:
+            resolved = _apply_sprint_start(config, args.sprint_start)
+        except ProjectError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        print(f"sprint : first iteration starts {resolved} (--sprint-start)")
     title = config["project"]["title"]
     source_repos = merged.meta.source_repos
     if not source_repos:

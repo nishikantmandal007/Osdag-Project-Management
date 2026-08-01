@@ -5,6 +5,27 @@ V2 **iteration** field generated from the board schema in `config/base.yml` (`st
 `duration_days: 14`) — the board owns the numbered iterations, replacing the old
 "Sprint N:" title-prefix convention.
 
+## Changing the sprint length or start
+
+Sprint length is `duration_days` on the Sprint field in `config/base.yml`:
+
+```yaml
+- name: Sprint
+  type: ITERATION
+  duration_days: 14        # 7 = weekly, 15 = fortnight-plus
+  start_date: "2026-08-03"
+```
+
+Change `duration_days` (e.g. `7` or `15`), PR it, and run **Bootstrap board**
+(`pm-bootstrap-board.yml`). GitHub generates iterations *forward* from
+`start_date`, so this reshapes future sprints. To also move where the numbering
+begins — for a fresh demo, "start today" — run bootstrap with
+`--sprint-start today` (or a specific `YYYY-MM-DD`) rather than editing
+`start_date`; that's what a first setup on osdag-admin uses so sprint 1 begins on
+the setup day ([SOP-10](SOP-10-osdag-admin-setup.md)). The step-by-step, plus the
+manual-UI alternative (**Sprint** field → *Edit iterations*), is
+[SOP-09 Tutorial 3](SOP-09-customizing.md).
+
 ## The weekly rhythm
 
 | When | Ceremony | Output |

@@ -9,8 +9,8 @@ human-readable index. The board is **project #3**,
 
 | Field | Type | Values / notes |
 |---|---|---|
-| **Status** | single-select | Backlog → Triage → Ready → In Progress → In Review → QA/Verify → Blocked → Done |
-| **Sprint** | iteration (2 wk) | Generated from `start_date: 2026-08-03`, `duration_days: 14` |
+| **Status** | single-select | Backlog → Triage → Ready → In Progress → In Review → **Merged** → QA/Verify → Blocked → Done |
+| **Sprint** | iteration (2 wk) | Generated from `start_date: 2026-08-03`, `duration_days: 14` (change these to move/resize sprints — [SOP-03](SOP-03-sprint-cadence.md)) |
 | **Priority** | single-select | P0-now · P1-sprint · P2-next · P3-backlog |
 | **Severity** | single-select | S1-critical · S2-major · S3-minor · S4-cosmetic |
 | **Size** | single-select | XS (≤2h) · S (≤1d) · M (≤3d) · L (≤1wk) · XL (split it) |
@@ -18,8 +18,17 @@ human-readable index. The board is **project #3**,
 | **Epic** | single-select | E1…E10 (derived from the overlay's `epics:` codes verbatim) |
 | **Area** | **multi-select** | Subsystems; multi because issues span two |
 | **Target release** | single-select | v1.0-GA · v1.1 · v2.0 · future |
+| **Deploy stage** | single-select | Dev → Test → Ready for Prod → In Production (blank = not deployed) |
 | **Start date** | date | Required for the roadmap to render |
 | **Target date** | date | Required for the roadmap to render |
+
+**Status vs Deploy stage — two axes.** **Status** is the development flow and now
+ends at **Merged** (PR merged to the default branch) before QA/Verify → Done.
+Once merged, an item's *release* progress is tracked on the separate **Deploy
+stage** field, set by the conda release pipeline (E6 — see
+[SOP-06](SOP-06-seeding-promotion.md)), one stage per channel `dev → test → main`.
+Keeping them separate means "code is done" and "code is shipped" never fight over
+one column.
 
 Why some fields are GraphQL-only: `gh` 2.45.0's `field-create` accepts only
 TEXT/SINGLE_SELECT/DATE/NUMBER — no ITERATION, no MULTI_SELECT — and has no view
@@ -35,9 +44,28 @@ subcommand at all. The whole board is built through GraphQL.
 | **Epic Roadmap** | Roadmap | `label:type:epic` | Outcomes over time (needs date fields) |
 | **Release v1.0-GA** | Board | `milestone:v1.0-GA` | What's blocking the release |
 | **By Owner** | Board | `sprint:@current is:open` | Who's carrying what |
+| **Release pipeline** | Board | `status:Merged,Done` | Merged items moving through the conda channels — **group by Deploy stage** (manual UI toggle) |
+| **Workload** | Board | `sprint:@current is:open` | Who's carrying the most this sprint — **group by Assignees** (or a custom Owner field; manual UI toggle) |
 
 Views are created without a filter (`CreateProjectV2ViewInput` has no filter
 input) then updated with one — verified against the live schema.
+
+**A view's *group-by* is not an API surface.** GitHub exposes no create/update
+mutation for the grouping axis of a view, so **Release pipeline** (group by Deploy
+stage) and **Workload** (group by Assignees) are created with the right *filter*
+by the bootstrapper but need one manual UI toggle each: open the view → **⋯** →
+**Group by** → pick the field. This is the same class of one-time manual click as
+the five board workflows in [BOARD-SETUP](BOARD-SETUP.md).
+
+### Reading the Workload view
+
+Grouped by **Assignees**, each person becomes a column and the column's height is
+their open load for the current sprint — the tallest column is the most-loaded
+person. Use it in the sprint review to rebalance ([SOP-03](SOP-03-sprint-cadence.md)).
+The board's **Insights** tab charts the same by assignee over time. If your team
+can't use GitHub's native Assignees (interns without repo access), add a custom
+single-select **Owner** field and group by that instead — see
+[SOP-10](SOP-10-osdag-admin-setup.md) for the assignment options.
 
 ## Expected empties
 

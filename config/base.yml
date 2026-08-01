@@ -203,3 +203,10 @@ views:
   - name: "Release pipeline"
     layout: BOARD_LAYOUT
     filter: "status:Merged,Done"
+  # Who is carrying how much this sprint. Group this board by Assignees in the UI
+  # (same one-time manual toggle as above) — each person becomes a column and the
+  # column height is their load. The board Insights tab also charts this as a bar
+  # chart by assignee. See SOP-08 (Workload) and SOP-09.
+  - name: "Workload"
+    layout: BOARD_LAYOUT
+    filter: "sprint:@current is:open"

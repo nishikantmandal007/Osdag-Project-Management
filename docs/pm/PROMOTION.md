@@ -14,13 +14,16 @@ decision to make it real.
 
 ## Why it isn't a button
 
-- **No push access to upstream → no _Transfer issue_.** GitHub's native transfer
-  (which preserves numbers and comment threads) requires write access to both
-  repos. Without it, migration is **recreate-with-backlink**: new issue numbers,
-  flattened comment history, and a period where two trackers are live and people
-  may keep filing on the old one out of habit.
-- **The 5 board workflows are manual clicks per repo** ([BOARD-SETUP](BOARD-SETUP.md)).
-- The reconciler *config* replays with `--repo`/`--owner`; the *agreement* does not.
+- **The PAT needs Issues + Projects write on the osdag-admin repos.** Direct-from-repo
+  intake tracks issues *in place* on their own repos, and labels-as-code writes
+  `type:/sev:/area:` onto them — so the promoted PAT needs **Issues: read + write**
+  on each source repo and **Projects: read + write** on the account. That grant is
+  the whole gate. (Good news: because issues stay in place there is **no** issue
+  migration, no renumbering, and no flattened comment threads — the old mirror
+  model's worst problem is gone. See [SOP-06](SOP-06-seeding-promotion.md).)
+- **The 5 board workflows are manual clicks, one Auto-add per source repo**
+  ([BOARD-SETUP](BOARD-SETUP.md)).
+- The engine replays with `--software`/`--owner`; the *agreement* does not.
 
 ## The four decisions (each needs a named answer)
 
@@ -38,20 +41,26 @@ decision to make it real.
    - What happens to `nishikantmandal007/osdagbridge-pm` — archived, or kept as
      staging? _______________
 
-4. **What happens to the 59 upstream comment threads?**
-   - Accept flattening into backlinks, or negotiate write access for a true
-     transfer? _______________
-   - How is the old tracker frozen so filing converges on the new one?
-     _______________
+4. **Are the staging copies retired?**
+   - Direct-from-repo means osdag-admin's issues are tracked *in place* — nothing
+     is migrated. The only cleanup is the ~77 mirror-era copies on the staging
+     board; decide whether to delete them or keep them as history
+     ([SOP-06](SOP-06-seeding-promotion.md)). _______________
+   - What happens to `nishikantmandal007/osdagbridge-pm` — archived, or kept as
+     staging? _______________
 
 ## Sequence, once decided
 
+The concrete, click-by-click runbook is **[SOP-10](SOP-10-osdag-admin-setup.md)**.
+In brief:
+
 1. Answers filled in above and agreed by the named contact.
-2. Mint the promoted fine-grained PAT (account-level Projects: Read/Write),
-   90-day expiry, store as `GH_PM_TOKEN` on the target repo.
-3. Replay config: labels → board → epics → seed, each `--repo osdag-admin/OsdagBridge`,
-   dry-run first, then apply.
-4. Click the 5 board workflows ([BOARD-SETUP](BOARD-SETUP.md)) on the new board.
-5. Freeze the old tracker (pin an issue pointing at the new one; consider locking).
+2. Mint the promoted fine-grained PAT (account-level Projects: Read/Write; Issues:
+   Read/Write on each source repo), 90-day expiry, store as `GH_PM_TOKEN`.
+3. Point the overlay's `source_repos` at the osdag-admin repos; replay config with
+   `--software`: board → epics → reconcile labels, dry-run first, then apply. Use
+   `--sprint-start today` for the demo's first sprint.
+4. Click the board workflows ([BOARD-SETUP](BOARD-SETUP.md)) — one Auto-add per
+   source repo — and grant team leads project access ([SOP-10](SOP-10-osdag-admin-setup.md)).
 
 Until step 1 has real names in it, do not start step 2.
