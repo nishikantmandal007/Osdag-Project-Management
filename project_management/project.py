@@ -143,7 +143,14 @@ def find_project(gql: GraphQL, login: str, title: str, is_org: bool) -> dict | N
 
 
 def project_fields(gql: GraphQL, project_id: str) -> dict[str, dict]:
-    """Existing fields by name. Paginated — 100 is not a safe assumption."""
+    """Existing fields by name. Paginated — 100 is not a safe assumption.
+
+    Single-select fields also carry their live ``options`` (id/name/color/
+    description) so the bootstrap can reconcile a field's option set — GitHub's
+    built-in Status field is the reason this matters: it always pre-exists, so
+    the only way our configured Status flow reaches it is by updating options on
+    the existing field, which needs to know what is already there.
+    """
     fields: dict[str, dict] = {}
     cursor = None
     while True:
@@ -154,6 +161,9 @@ def project_fields(gql: GraphQL, project_id: str) -> dict[str, dict]:
                      pageInfo{ hasNextPage endCursor }
                      nodes{
                        ... on ProjectV2FieldCommon { id name dataType }
+                       ... on ProjectV2SingleSelectField {
+                         options { id name color description }
+                       }
                      }
                    }
                  }}
@@ -290,6 +300,29 @@ def create_field(gql: GraphQL, project_id: str, spec: dict) -> dict:
                   }}){{ projectV2Field{{ ... on ProjectV2FieldCommon {{ id name dataType }} }} }}
                 }}"""
     return gql(query, **variables)["createProjectV2Field"]["projectV2Field"]
+
+
+def update_field_options(gql: GraphQL, field_id: str, options: list[dict]) -> dict:
+    """Replace a single-select field's option set.
+
+    ``updateProjectV2Field`` takes the FULL option list — the input has no
+    per-option id, so options are matched by name: a same-named option keeps its
+    id and every item value set on it, a new name is added, and a name omitted
+    here is *removed* along with its item values. Callers must therefore pass
+    every option they want to keep. bootstrap's reconcile does exactly that: it
+    appends any live option the config omits, so this never drops a column or an
+    item's value (the never-delete invariant that governs the whole system).
+    """
+    data = gql(
+        """mutation($fieldId:ID!,$options:[ProjectV2SingleSelectFieldOptionInput!]){
+             updateProjectV2Field(input:{fieldId:$fieldId, singleSelectOptions:$options}){
+               projectV2Field{ ... on ProjectV2SingleSelectField { id name options { id name } } }
+             }
+           }""",
+        fieldId=field_id,
+        options=options,
+    )
+    return data["updateProjectV2Field"]["projectV2Field"]
 
 
 def create_view(gql: GraphQL, project_id: str, name: str, layout: str) -> dict:

@@ -3,8 +3,11 @@
     python -m project_management.bootstrap_board --owner LOGIN --software NAME [--apply]
 
 Dry-run by default. Idempotent: fields and views already present are left
-alone, so re-running is a no-op and standing up a second project's board is the
-same command with a different --software.
+alone (the one exception is a single-select field whose options drift from
+config — Status is reconciled onto GitHub's built-in field, merging in the
+configured flow without dropping any existing option), so re-running is a no-op
+and standing up a second project's board is the same command with a different
+--software.
 
 The board is linked to the overlay's ``source_repos`` and pulls their issues in
 place (``--populate``) — there is no mirror. Never deletes: a field holds every
@@ -33,6 +36,7 @@ from .project import (
     project_views,
     rename_project,
     repository_id,
+    update_field_options,
     update_view,
 )
 
@@ -45,6 +49,47 @@ BUILTIN_FIELDS = {
     # Read-only timestamp fields GitHub adds to every project.
     "Closed", "Created", "Updated",
 }
+
+
+def _opt_input(o: dict) -> dict:
+    """One option as updateProjectV2Field wants it: name, color, description all
+    present (color and description are non-null in the schema)."""
+    return {
+        "name": o["name"],
+        "color": o.get("color", "GRAY"),
+        "description": o.get("description", "") or "",
+    }
+
+
+def _merge_options(config_opts: list[dict], live_opts: list[dict]) -> tuple[list[dict], list[str], list[str]]:
+    """Config options first (in config order), then any live option config omits.
+
+    Returns ``(merged_input, added_names, preserved_names)``. Merging rather than
+    replacing is what keeps the never-delete invariant: a live option absent from
+    config — GitHub's default ``Todo`` is the usual one — is carried through
+    untouched and reported, never dropped. Options are matched by name, so a
+    same-named option (``In Progress``, ``Done``) keeps its id and item values.
+    """
+    config_names = {o["name"] for o in config_opts}
+    live_names = {o["name"] for o in live_opts}
+
+    merged = [_opt_input(o) for o in config_opts]
+    preserved = [o for o in live_opts if o["name"] not in config_names]
+    merged.extend(_opt_input(o) for o in preserved)
+
+    added = [o["name"] for o in config_opts if o["name"] not in live_names]
+    return merged, added, [o["name"] for o in preserved]
+
+
+def _options_in_sync(merged: list[dict], live_opts: list[dict]) -> bool:
+    """True when the field already holds exactly the merged options, in order.
+
+    Order is significant — single-select option order is the board's column
+    order — so this compares the ordered name lists. Comparing names (not colors)
+    keeps the reconcile idempotent even if GitHub normalises a colour enum on the
+    way back; a colour-only config change is intentionally not re-applied here.
+    """
+    return [m["name"] for m in merged] == [o["name"] for o in live_opts]
 
 
 def _merged(software: str | None):
@@ -549,6 +594,28 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  created  {spec['name']} ({spec['type']})")
             else:
                 print(f"  CREATE   {spec['name']} ({spec['type']})")
+
+        # Options drift on single-select fields that already exist. GitHub ships
+        # every board a built-in Status field (Todo/In Progress/Done), so our
+        # richer Status is never in `creates` and would otherwise never appear —
+        # this is the one place a field must be *updated*, not just created.
+        # Merge, never replace: config options come first, any live option the
+        # config omits is preserved and reported, so no column and no item value
+        # is ever dropped.
+        for name, spec in desired.items():
+            if name not in existing or spec.get("type") != "SINGLE_SELECT":
+                continue
+            live_opts = existing[name].get("options") or []
+            merged_opts, added, preserved = _merge_options(spec["options"], live_opts)
+            if _options_in_sync(merged_opts, live_opts):
+                continue
+            if args.apply:
+                update_field_options(gql, existing[name]["id"], merged_opts)
+                print(f"  options  {name}: {len(added)} added, {len(preserved)} preserved")
+            else:
+                print(f"  OPTIONS  {name}: would add {added or '(reorder only)'}")
+            for opt in preserved:
+                print(f"           preserved {opt!r} (not in config; not deleted — remove by hand)")
 
         for name in sorted(existing):
             if name not in desired and name not in BUILTIN_FIELDS:
