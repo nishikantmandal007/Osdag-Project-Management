@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/nishikantmandal007/osdagbridge-pm/config/schema/software.schema.json",
+  "$id": "https://github.com/nishikantmandal007/Osdag-Project-Management/config/schema/software.schema.json",
   "title": "Per-project overlay config",
   "description": "The project-specific half of a board: display name, area labels, epics, source repos, and release channels. Merged with config/base.yml by project_management.config.load_merged.",
   "type": "object",

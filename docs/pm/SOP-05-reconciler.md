@@ -25,7 +25,7 @@ with `GH_PM_TOKEN`, so the token never transits a laptop or chat.
 ## Reading a dry-run
 
 ```
-python3 -m project_management.reconcile --repo nishikantmandal007/osdagbridge-pm --dry-run
+python3 -m project_management.reconcile --repo nishikantmandal007/Osdag-Project-Management --dry-run
 ```
 
 - `created` / `updated` / `renamed` — what an `--apply` *would* do.

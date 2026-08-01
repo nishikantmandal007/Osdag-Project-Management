@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/nishikantmandal007/osdagbridge-pm/config/schema/labels.schema.json",
+  "$id": "https://github.com/nishikantmandal007/Osdag-Project-Management/config/schema/labels.schema.json",
   "title": "Label taxonomy",
   "description": "Validated before any GitHub call. A malformed config must fail locally, not halfway through mutating a live tracker.",
   "type": "object",

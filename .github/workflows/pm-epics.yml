@@ -16,7 +16,7 @@ on:
       repo:
         description: "Repository to file epics in (OWNER/NAME)"
         required: true
-        default: nishikantmandal007/osdagbridge-pm
+        default: nishikantmandal007/Osdag-Project-Management
       apply:
         description: "Apply changes (unchecked = dry run)"
         type: boolean

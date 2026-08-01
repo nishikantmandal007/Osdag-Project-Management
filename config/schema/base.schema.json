@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/nishikantmandal007/osdagbridge-pm/config/schema/base.schema.json",
+  "$id": "https://github.com/nishikantmandal007/Osdag-Project-Management/config/schema/base.schema.json",
   "title": "Project-invariant base config",
   "description": "The shared half of every board: type/sev namespaces, protected labels, shared board fields and views. The area namespace and epics come from a per-project overlay.",
   "type": "object",

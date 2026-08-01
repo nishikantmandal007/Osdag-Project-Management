@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/nishikantmandal007/osdagbridge-pm/config/schema/rollup.schema.json",
+  "$id": "https://github.com/nishikantmandal007/Osdag-Project-Management/config/schema/rollup.schema.json",
   "title": "All Projects roll-up board config",
   "description": "The portfolio board: reuses base fields/views and adds one Software field whose options are the listed projects.",
   "type": "object",

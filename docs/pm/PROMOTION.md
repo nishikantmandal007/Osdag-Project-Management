@@ -9,7 +9,7 @@
 
 Standing this PM system up on the canonical repo — `osdag-admin/OsdagBridge` —
 and making it the single tracker students and contributors file against. Staging
-proved the mechanics on `nishikantmandal007/osdagbridge-pm`; promotion is the
+proved the mechanics on `nishikantmandal007/Osdag-Project-Management`; promotion is the
 decision to make it real.
 
 ## Why it isn't a button
@@ -38,7 +38,7 @@ decision to make it real.
 
 3. **Who owns the canonical tracker after promotion?**
    - Single owner of triage + sprint cadence: _______________
-   - What happens to `nishikantmandal007/osdagbridge-pm` — archived, or kept as
+   - What happens to `nishikantmandal007/Osdag-Project-Management` — archived, or kept as
      staging? _______________
 
 4. **Are the staging copies retired?**
@@ -46,7 +46,7 @@ decision to make it real.
      is migrated. The only cleanup is the ~77 mirror-era copies on the staging
      board; decide whether to delete them or keep them as history
      ([SOP-06](SOP-06-seeding-promotion.md)). _______________
-   - What happens to `nishikantmandal007/osdagbridge-pm` — archived, or kept as
+   - What happens to `nishikantmandal007/Osdag-Project-Management` — archived, or kept as
      staging? _______________
 
 ## Sequence, once decided

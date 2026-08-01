@@ -20,7 +20,7 @@ on:
       repo:
         description: "Repo to probe for --check only (OWNER/NAME); source repos come from the overlay"
         required: false
-        default: nishikantmandal007/osdagbridge-pm
+        default: nishikantmandal007/Osdag-Project-Management
       apply:
         description: "Apply changes (unchecked = dry run)"
         type: boolean

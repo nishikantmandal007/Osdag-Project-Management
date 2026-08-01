@@ -82,7 +82,7 @@ issue is irreversible and needs repo **Admin**, so a human does it with eyes ope
 To find them:
 
 ```
-gh issue list -R nishikantmandal007/osdagbridge-pm --state all --limit 200 \
+gh issue list -R nishikantmandal007/Osdag-Project-Management --state all --limit 200 \
   --search '"<!-- src:" in:body' --json number,title
 ```
 
@@ -90,7 +90,7 @@ Then, once you've confirmed the list is only mirror copies:
 
 - **Keep as history (recommended default):** do nothing. They stay as a frozen
   staging record. New work is tracked directly on the source repos.
-- **Close them:** `gh issue close <N> -R nishikantmandal007/osdagbridge-pm` per
+- **Close them:** `gh issue close <N> -R nishikantmandal007/Osdag-Project-Management` per
   number — reversible, keeps the thread.
 - **Delete them:** Issue → **⋯** → **Delete issue** in the UI (repo Admin only),
   or `gh issue delete <N> -R … --yes`. Irreversible; only for a demo repo you own.
