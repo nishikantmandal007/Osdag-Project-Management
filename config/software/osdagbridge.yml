@@ -5,15 +5,17 @@
 # conda channels it releases to. `config/base.yml` supplies everything shared.
 # `pm.config.load_merged("osdagbridge")` stitches the two together.
 #
-# NOTE: `display_name` is still "OsdagBridge Delivery" — the same title board #3
-# was created with — so the split reproduces today's board exactly. Renaming it
-# to plain "OsdagBridge" is a separate, deliberate step (updateProjectV2, see
-# pm/project.py:rename_project) so the reconciler does not silently create a
-# second board.
+# NOTE: `display_name` is the board title. Under the "Osdag Project Management"
+# suite, boards use the plain project name, so this is "OsdagBridge" (it was
+# "OsdagBridge Delivery" when board #3 was created). Because find_project matches
+# on title, the live board must be moved to the new title in one step —
+# `pm.bootstrap_board --rename-from "OsdagBridge Delivery" --apply` (updateProjectV2,
+# see pm/project.py:rename_project) — otherwise a plain bootstrap run would create
+# a second board. That rename needs the PAT and is a one-time manual/CI step.
 
 version: 1
 name: osdagbridge
-display_name: "OsdagBridge Delivery"
+display_name: "OsdagBridge"
 short_description: "Sprints, epics and tiered bugs for OsdagBridge."
 
 # The Projects V2 board this overlay drives. Created once; thereafter matched by

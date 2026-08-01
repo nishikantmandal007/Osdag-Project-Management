@@ -57,7 +57,14 @@ def test_merged_board_reproduces_fields_and_views():
     board = load_merged("osdagbridge").board
     legacy = load_project_config()
 
-    assert board["project"] == legacy["project"]
+    # The board title is the ONE intentional divergence from the retired
+    # monolith: the "Osdag Project Management" suite renames board #3
+    # "OsdagBridge Delivery" -> "OsdagBridge" (a one-time updateProjectV2 via
+    # `pm.bootstrap_board --rename-from`). Everything else is lossless, so the
+    # short description and every field/view still match exactly.
+    assert board["project"]["title"] == "OsdagBridge"
+    assert legacy["project"]["title"] == "OsdagBridge Delivery"
+    assert board["project"]["short_description"] == legacy["project"]["short_description"]
 
     merged_fields = {f["name"]: f for f in board["fields"]}
     legacy_fields = {f["name"]: f for f in legacy["fields"]}

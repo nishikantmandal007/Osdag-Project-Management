@@ -1,11 +1,21 @@
-# osdagbridge-pm
+<img src="docs/assets/osdag-logo.png" alt="Osdag" height="72">
 
-Project-management system for [OsdagBridge](https://github.com/osdag-admin/OsdagBridge):
-declarative board configuration, a reconciler that keeps GitHub matching that
-configuration, and the SOPs that describe how work actually flows.
+# Osdag Project Management
 
-**This repo holds process, not application code.** OsdagBridge's Python lives in
-the code repo; nothing here imports it.
+*A FOSSEE / IIT Bombay project.*
+
+One project-management engine for the FOSSEE family of projects: declarative
+board configuration, a reconciler that keeps GitHub matching that configuration,
+and the SOPs that describe how work actually flows. The same engine drives a
+board per project — **Osdag**, **OsdagBridge**, and more — from a shared base
+plus one small per-project overlay.
+
+Today it runs the **OsdagBridge** board; an **Osdag** overlay is staged next
+(`config/software/osdag.yml`). Adding a project is a new file in
+`config/software/`, not new code.
+
+**This repo holds process, not application code.** Each project's Python lives in
+its own code repo; nothing here imports it.
 
 ## Why this repo exists separately
 
@@ -21,11 +31,15 @@ filing real issues.
 ## Layout
 
 ```
-config/          Declarative source of truth — labels, epics, fields, views.
-pm/              Python reconciler. Reads config/, makes GitHub match it.
-docs/pm/         README front door + SOP appendices + board setup checklist.
-.github/         Issue forms, PR template, and the pm-* workflows.
-tests/           pytest for the reconciler itself.
+config/base.yml       Shared across every project — type:/sev: labels, board
+                        fields and views.
+config/software/*.yml  One overlay per project — its areas, epics, source
+                        repo(s), board title. `--software NAME` merges base + overlay.
+config/rollup.yml      The "All Projects" board that spans every project.
+pm/                    Python reconciler. Reads config/, makes GitHub match it.
+docs/pm/               README front door + SOP appendices + board setup checklist.
+.github/               Issue forms, PR template, and the pm-* workflows.
+tests/                 pytest for the reconciler itself.
 ```
 
 ## Ground rules
@@ -61,5 +75,8 @@ automations have no API and must be clicked by hand.
 Board live (project #3, 77 issues, 10 epics + 6 sub-epics seeded). Reconciler
 runs nightly, read-only, with a board-health check (liveness heartbeat + stale
 un-triaged issues) that self-heals its own "Board health" issue. Docs and SOPs
-landed. Still open: the analytics bots and governance sign-off
+landed. Config is now split base + per-project overlay (`--software`), and the
+board title is set to plain **OsdagBridge** in config — the one-time live rename
+(`pm.bootstrap_board --rename-from "OsdagBridge Delivery" --apply`, needs the
+PAT) is pending. Still open: the analytics bots and governance sign-off
 ([`docs/pm/PROMOTION.md`](docs/pm/PROMOTION.md)). See the tracker for detail.

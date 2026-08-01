@@ -29,6 +29,7 @@ from .project import (
     owner_id,
     project_fields,
     project_views,
+    rename_project,
     repository_id,
     update_view,
 )
@@ -201,6 +202,66 @@ def check_token(owner: str, repo: str) -> int:
     return 0
 
 
+def rename_board(owner: str, old_title: str, apply: bool, software: str | None = None) -> int:
+    """One-time in-place rename of a board from OLD_TITLE to the config title.
+
+    ``find_project`` matches on title, so renaming a board is a chicken-and-egg
+    step: change the overlay ``display_name`` and a plain bootstrap run stops
+    finding the old board and CREATEs a second one. This locates the board by
+    its *current* (old) title and moves it to the *new* title the config now
+    declares. Idempotent: if the old title is already gone but the new one
+    exists, it reports "already renamed" and does nothing.
+    """
+    try:
+        gql = GraphQL.from_env()
+        config = _board_config(software)
+    except ProjectError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    new_title = config["project"]["title"]
+    if old_title == new_title:
+        print(f"error: --rename-from {old_title!r} equals the config title; nothing to do", file=sys.stderr)
+        return 2
+
+    try:
+        _, is_org = owner_id(gql, owner)
+        old = find_project(gql, owner, old_title, is_org)
+        new = find_project(gql, owner, new_title, is_org)
+    except ProjectError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    if old is None:
+        if new is not None:
+            print(f"already renamed: #{new['number']} is titled {new_title!r} (no board named {old_title!r})")
+            return 0
+        print(f"error: no board titled {old_title!r} or {new_title!r} owned by {owner}", file=sys.stderr)
+        return 1
+
+    if new is not None and new["id"] != old["id"]:
+        print(
+            f"error: both {old_title!r} (#{old['number']}) and {new_title!r} (#{new['number']}) exist. "
+            "Renaming would collide — resolve by hand.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"board  : #{old['number']} {old_title!r} -> {new_title!r}")
+    print(f"mode   : {'APPLY' if apply else 'dry-run'}\n")
+    if not apply:
+        print("dry run; nothing changed. Re-run with --apply")
+        return 1
+
+    try:
+        renamed = rename_project(gql, old["id"], new_title)
+    except ProjectError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"renamed: #{renamed['number']} is now titled {renamed['title']!r}")
+    return 0
+
+
 def populate_board(owner: str, repo: str, apply: bool, software: str | None = None) -> int:
     """Add every open issue in the repo to the board.
 
@@ -342,6 +403,12 @@ def main(argv: list[str] | None = None) -> int:
         help="backfill: add every open repo issue to the board (idempotent)",
     )
     parser.add_argument(
+        "--rename-from",
+        metavar="OLD_TITLE",
+        help="one-time in-place rename: move the board titled OLD_TITLE to the "
+             "config title (needed after changing an overlay display_name)",
+    )
+    parser.add_argument(
         "--software",
         metavar="NAME",
         help="build the board from base.yml + config/software/NAME.yml "
@@ -354,6 +421,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.introspect:
         return introspect_schema()
+
+    if args.rename_from:
+        return rename_board(args.owner, args.rename_from, args.apply, software=args.software)
 
     if args.populate:
         return populate_board(args.owner, args.repo, args.apply, software=args.software)

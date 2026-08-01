@@ -209,6 +209,29 @@ def create_project(gql: GraphQL, owner: str, title: str, repo_id: str | None = N
     return data["createProjectV2"]["projectV2"]
 
 
+def rename_project(gql: GraphQL, project_id: str, title: str) -> dict:
+    """Rename a board in place via ``updateProjectV2(title:)``.
+
+    This exists because ``find_project`` matches on title: once an overlay's
+    ``display_name`` changes, a bare bootstrap run would no longer *find* the
+    old board and would CREATE a second one under the new name. A one-time
+    rename moves the existing board (and every item, field and view on it) to
+    the new title, after which config and board agree again and bootstrap is
+    idempotent. Report-only invariant intact — nothing is deleted; the board's
+    contents are untouched.
+    """
+    data = gql(
+        """mutation($projectId:ID!,$title:String!){
+             updateProjectV2(input:{projectId:$projectId,title:$title}){
+               projectV2{ id number title }
+             }
+           }""",
+        projectId=project_id,
+        title=title,
+    )
+    return data["updateProjectV2"]["projectV2"]
+
+
 def _iteration_config(spec: dict) -> dict:
     """Build a ProjectV2IterationFieldConfigurationInput for an ITERATION field.
 

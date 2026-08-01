@@ -1,7 +1,14 @@
+<img src="../assets/osdag-logo.png" alt="Osdag" height="64">
+
 # OsdagBridge — Project Management
 
-The front door. If you are filing an issue, running a sprint, or operating the
-board, start here and follow the link to the relevant SOP.
+*Part of **Osdag Project Management**, one engine over many FOSSEE-project boards.
+A FOSSEE / IIT Bombay project.*
+
+The front door **for the OsdagBridge board**. If you are filing an issue, running
+a sprint, or operating the board, start here and follow the link to the relevant
+SOP. Each project in the suite has its own board built from `config/base.yml` plus
+its overlay in `config/software/`; this page describes OsdagBridge's.
 
 **New here, or new to project management?** Read the
 **[PM Handbook (PDF)](handbook/osdagbridge-pm-handbook.pdf)** first. It teaches
@@ -13,10 +20,13 @@ The SOPs below are the terse reference once you know the ropes.
 The [top-level README](../../README.md) explains *why this repo exists*. This
 document explains *how work flows through it*.
 
-- **Board:** <https://github.com/users/nishikantmandal007/projects/3> — "OsdagBridge Delivery"
-- **Config is the source of truth.** Labels, epics, board fields and views all
-  come from `config/*.yml`. The reconciler makes GitHub match it; you change the
-  board by changing config in a PR, not by clicking (with the one exception in
+- **Board:** <https://github.com/users/nishikantmandal007/projects/3> — "OsdagBridge"
+  (renamed in place from "OsdagBridge Delivery"; if the live rename is still
+  pending it shows the old title until `pm.bootstrap_board --rename-from` runs).
+- **Config is the source of truth.** Labels, epics, board fields and views come
+  from `config/base.yml` (shared) merged with `config/software/osdagbridge.yml`
+  (this project's areas + epics). The reconciler makes GitHub match it; you change
+  the board by changing config in a PR, not by clicking (with the one exception in
   [BOARD-SETUP](BOARD-SETUP.md)).
 
 ---
@@ -38,8 +48,9 @@ Every L3 issue should end up with: a **type**, a **severity** (if it's a bug), a
 
 ## Label taxonomy (v1)
 
-Three namespaces ship at v1, so triage is three decisions, not eight. Full list
-lives in `config/labels.yml`.
+Three namespaces ship at v1, so triage is three decisions, not eight. `type:`
+and `sev:` are shared across the suite (`config/base.yml`); `area:` is
+project-specific (`config/software/osdagbridge.yml`).
 
 - **`type:`** — `epic` `feature` `story` `bug` `task` `chore` `spike` `docs` `test`
 - **`sev:`** — `S1-critical` `S2-major` `S3-minor` `S4-cosmetic` (see [SOP-02](SOP-02-bug-tiering.md))
