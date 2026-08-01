@@ -1,0 +1,29 @@
+# "All Projects" roll-up board.
+#
+# One read-across board that shows every project's work in a single place, with
+# a Software field to slice by project. It reuses config/base.yml's shared
+# fields and views verbatim and adds ONE field — Software — whose options are
+# the projects listed here. The per-project Epic/Area fields are intentionally
+# omitted: they differ per project and mean nothing across the whole portfolio.
+#
+# Built later (see the intake work); this file pins the shape now so the schema
+# and the Software option list have a home.
+
+version: 1
+
+project:
+  title: "All Projects"
+  short_description: "Portfolio roll-up across every Osdag PM board."
+
+# The projects this board rolls up. Each name must match a
+# config/software/<name>.yml overlay. These become the Software field's options.
+software:
+  - osdag
+  - osdagbridge
+
+# The Software field added on top of the shared base fields. SINGLE_SELECT
+# because one item belongs to exactly one project.
+software_field:
+  name: Software
+  type: SINGLE_SELECT
+  color: BLUE

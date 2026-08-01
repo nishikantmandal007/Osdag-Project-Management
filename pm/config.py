@@ -71,26 +71,39 @@ def _validate(document: dict, schema_name: str) -> None:
     raise ConfigError(f"{schema_name} validation failed:\n" + "\n".join(lines))
 
 
+def _load_yaml(path: Path) -> dict:
+    """Read one YAML file into a dict, or raise a readable ConfigError."""
+    if not path.is_file():
+        raise ConfigError(f"missing config: {path}")
+    try:
+        return yaml.safe_load(path.read_text()) or {}
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"{path.name} is not valid YAML: {exc}") from exc
+
+
 def load_labels(path: Path | None = None) -> LabelConfig:
     """Load `config/labels.yml`.
 
     Flattens the namespace grouping into a single tuple, resolving each
-    namespace's default colour. Cross-checks that the schema cannot express:
+    namespace's default colour. See `_labels_from_document` for the cross-checks.
+    """
+    path = path or (CONFIG_DIR / "labels.yml")
+    return _labels_from_document(_load_yaml(path), source=path.name)
+
+
+def _labels_from_document(document: dict, source: str = "labels") -> LabelConfig:
+    """Validate an already-loaded labels document and build a `LabelConfig`.
+
+    The document may come from a single `labels.yml` or from `load_merged`
+    (base namespaces + the overlay's `area:` namespace) — either way it has the
+    same shape and validates against the same schema. Cross-checks that the
+    schema cannot express:
 
     - no duplicate label names
     - every label name carries its namespace prefix
     - no alias collides with a desired name, or with another alias
     - no desired label is also listed as protected
     """
-    path = path or (CONFIG_DIR / "labels.yml")
-    if not path.is_file():
-        raise ConfigError(f"missing config: {path}")
-
-    try:
-        document = yaml.safe_load(path.read_text()) or {}
-    except yaml.YAMLError as exc:
-        raise ConfigError(f"{path.name} is not valid YAML: {exc}") from exc
-
     _validate(document, "labels.schema.json")
 
     labels: list[Label] = []
@@ -136,7 +149,7 @@ def load_labels(path: Path | None = None) -> LabelConfig:
         problems.append(f"{clash!r} is both a desired label and protected; pick one")
 
     if problems:
-        raise ConfigError(f"{path.name} is inconsistent:\n" + "\n".join(f"  {p}" for p in problems))
+        raise ConfigError(f"{source} is inconsistent:\n" + "\n".join(f"  {p}" for p in problems))
 
     return LabelConfig(
         labels=tuple(labels),
@@ -171,24 +184,24 @@ class EpicConfig:
 def load_epics(
     path: Path | None = None, known_labels: set[str] | None = None
 ) -> EpicConfig:
-    """Load `config/epics.yml`.
+    """Load `config/epics.yml`. See `_epics_from_document` for the cross-checks."""
+    path = path or (CONFIG_DIR / "epics.yml")
+    return _epics_from_document(_load_yaml(path), known_labels=known_labels, source=path.name)
 
-    Beyond the schema, cross-checks that:
+
+def _epics_from_document(
+    document: dict, known_labels: set[str] | None = None, source: str = "epics"
+) -> EpicConfig:
+    """Validate an already-loaded epics document and build an `EpicConfig`.
+
+    The document may come from a single `epics.yml` or from `load_merged` (the
+    overlay's `epics.items`). Beyond the schema, cross-checks that:
 
     - epic codes are unique (they map 1:1 to the board's Epic field options),
     - sub-epic slugs are unique within their parent,
     - every referenced `area:` label actually exists (when `known_labels` is
       supplied) — a typo'd area would otherwise create an unlabelled epic.
     """
-    path = path or (CONFIG_DIR / "epics.yml")
-    if not path.is_file():
-        raise ConfigError(f"missing config: {path}")
-
-    try:
-        document = yaml.safe_load(path.read_text()) or {}
-    except yaml.YAMLError as exc:
-        raise ConfigError(f"{path.name} is not valid YAML: {exc}") from exc
-
     _validate(document, "epics.schema.json")
 
     epics: list[Epic] = []
@@ -233,7 +246,7 @@ def load_epics(
                         problems.append(f"{epic.code}/{sub.slug}: unknown area label {area!r}")
 
     if problems:
-        raise ConfigError(f"{path.name} is inconsistent:\n" + "\n".join(f"  {p}" for p in problems))
+        raise ConfigError(f"{source} is inconsistent:\n" + "\n".join(f"  {p}" for p in problems))
 
     return EpicConfig(
         marker_prefix=document.get("marker_prefix", "epic"),
@@ -306,3 +319,160 @@ def load_seed(
         snapshot=snapshot,
         label_map=label_map,
     )
+
+
+# ── base + overlay merge ─────────────────────────────────────────────────────
+# One engine runs several project boards. `config/base.yml` holds what is
+# identical across them; `config/software/<name>.yml` holds what differs. This
+# section merges the two back into the document shapes the single-file loaders
+# already validate, so `--software <name>` reproduces a project's board exactly.
+
+SOFTWARE_DIR = CONFIG_DIR / "software"
+
+
+@dataclass(frozen=True)
+class SoftwareConfig:
+    """The overlay's non-label metadata: which board, repos, and channels."""
+
+    name: str
+    display_name: str
+    short_description: str
+    source_repos: tuple[str, ...]
+    board_number: int | None = None
+    logo: str | None = None
+    conda_channels: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class MergedConfig:
+    """base.yml + one overlay, resolved into the three things GitHub needs."""
+
+    meta: SoftwareConfig
+    labels: LabelConfig
+    epics: EpicConfig
+    board: dict  # project.yml-shaped: {version, project, fields, views}
+
+
+def list_software() -> list[str]:
+    """Names of every available overlay (`config/software/*.yml`), sorted."""
+    if not SOFTWARE_DIR.is_dir():
+        return []
+    return sorted(p.stem for p in SOFTWARE_DIR.glob("*.yml"))
+
+
+def _build_board(base: dict, overlay: dict, epics: EpicConfig) -> dict:
+    """Assemble the project.yml-shaped board dict from base + overlay.
+
+    The two `derived:` placeholders in `base["fields"]` are replaced in place
+    (preserving field order) with options built from the overlay: one Epic
+    option per epic `code`, and one Area option per `area:` label — UI areas
+    (those with an `alias`) purple, code areas blue, matching the hand-written
+    board this split replaces.
+    """
+    epic_options = [
+        {"name": epic.code, "color": "PURPLE", "description": epic.title}
+        for epic in epics.epics
+    ]
+    area_options = []
+    for entry in overlay["area_labels"]["labels"]:
+        short = entry["name"].split(":", 1)[1]
+        color = "PURPLE" if entry.get("alias") else "BLUE"
+        area_options.append(
+            {"name": short, "color": color, "description": entry.get("description", "")}
+        )
+
+    fields: list[dict] = []
+    for spec in base["fields"]:
+        derived = spec.get("derived")
+        if derived == "epic":
+            fields.append({"name": spec["name"], "type": spec["type"], "options": epic_options})
+        elif derived == "area":
+            fields.append({"name": spec["name"], "type": spec["type"], "options": area_options})
+        else:
+            fields.append(spec)
+
+    return {
+        "version": base.get("version", 1),
+        "project": {
+            "title": overlay["display_name"],
+            "short_description": overlay.get("short_description", ""),
+        },
+        "fields": fields,
+        "views": base["views"],
+    }
+
+
+def load_merged(software: str) -> MergedConfig:
+    """Merge `config/base.yml` with `config/software/<software>.yml`.
+
+    Produces the same label/epic/board shapes the single-file loaders used to
+    validate — so every existing schema and cross-check still runs, and
+    `--software <name>` is a lossless stand-in for the old monolithic config.
+    """
+    base = _load_yaml(CONFIG_DIR / "base.yml")
+    _validate(base, "base.schema.json")
+
+    overlay_path = SOFTWARE_DIR / f"{software}.yml"
+    if not overlay_path.is_file():
+        available = ", ".join(list_software()) or "(none)"
+        raise ConfigError(
+            f"no overlay for software {software!r}: {overlay_path} not found. "
+            f"Available: {available}"
+        )
+    overlay = _load_yaml(overlay_path)
+    _validate(overlay, "software.schema.json")
+    if overlay["name"] != software:
+        raise ConfigError(
+            f"{overlay_path.name}: name {overlay['name']!r} does not match its "
+            f"filename {software!r}"
+        )
+
+    labels_doc = {
+        "version": base.get("version", 1),
+        "namespaces": {**base["namespaces"], "area": overlay["area_labels"]},
+        "protected": base.get("protected", []),
+        "migrations": overlay.get("migrations", {}),
+    }
+    labels = _labels_from_document(labels_doc, source=f"base.yml+{software}.yml")
+
+    epics_doc = {
+        "version": overlay.get("version", 1),
+        "marker_prefix": overlay["epics"].get("marker_prefix", "epic"),
+        "epics": overlay["epics"]["items"],
+    }
+    epics = _epics_from_document(
+        epics_doc, known_labels=set(labels.by_name()), source=f"{software}.yml:epics"
+    )
+
+    board = _build_board(base, overlay, epics)
+
+    meta = SoftwareConfig(
+        name=overlay["name"],
+        display_name=overlay["display_name"],
+        short_description=overlay.get("short_description", ""),
+        source_repos=tuple(overlay["source_repos"]),
+        board_number=overlay.get("board_number"),
+        logo=overlay.get("logo"),
+        conda_channels=dict(overlay.get("conda_channels", {})),
+    )
+
+    return MergedConfig(meta=meta, labels=labels, epics=epics, board=board)
+
+
+def load_rollup() -> dict:
+    """Load and validate `config/rollup.yml` (the 'All Projects' board).
+
+    Cross-checks that every rolled-up software name has a matching overlay, so a
+    typo doesn't produce a Software option that points at nothing.
+    """
+    path = CONFIG_DIR / "rollup.yml"
+    document = _load_yaml(path)
+    _validate(document, "rollup.schema.json")
+    available = set(list_software())
+    missing = [name for name in document["software"] if name not in available]
+    if missing:
+        raise ConfigError(
+            f"{path.name}: no overlay for software {missing!r} (have: "
+            f"{', '.join(sorted(available)) or 'none'})"
+        )
+    return document

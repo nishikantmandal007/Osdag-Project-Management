@@ -1,0 +1,178 @@
+# OsdagBridge — per-project overlay.
+#
+# The half of the board that is specific to OsdagBridge: its subsystems
+# (area: labels), its epics, the source repo(s) its issues live in, and the
+# conda channels it releases to. `config/base.yml` supplies everything shared.
+# `pm.config.load_merged("osdagbridge")` stitches the two together.
+#
+# NOTE: `display_name` is still "OsdagBridge Delivery" — the same title board #3
+# was created with — so the split reproduces today's board exactly. Renaming it
+# to plain "OsdagBridge" is a separate, deliberate step (updateProjectV2, see
+# pm/project.py:rename_project) so the reconciler does not silently create a
+# second board.
+
+version: 1
+name: osdagbridge
+display_name: "OsdagBridge Delivery"
+short_description: "Sprints, epics and tiered bugs for OsdagBridge."
+
+# The Projects V2 board this overlay drives. Created once; thereafter matched by
+# title. GitHub exposes no board logo/avatar API — a board has only a title, a
+# short description and a README — so `logo` is used in the repo/docs, never on
+# the board itself.
+board_number: 3
+logo: "https://osdag.fossee.in/sites/osdag.fossee.in/files/Logo_osdag.png"
+
+# Where this project's issues actually live. The board links these repos and
+# tracks their issues IN PLACE (no mirror). On staging this points at a
+# user-controlled fork; promotion to osdag-admin needs Issues:read+write there
+# (the same governance gate as docs/pm/PROMOTION.md).
+source_repos:
+  - nishikantmandal007/OsdagBridge
+
+# conda promotion channels for the 3-stage release pipeline (E6). Documented
+# now, wired later by release.yml on the code repo: merge -> dev, RC -> test,
+# GitHub Release -> main.
+conda_channels:
+  dev:  "osdag/label/dev"
+  test: "osdag/label/test"
+  main: "osdag/label/main"
+
+# ── area: namespace (this project's subsystems) ──────────────────────────────
+# Same shape as a base.yml namespace entry. UI surfaces carry `alias` (the
+# label name on the source repo; the reconciler renames in place rather than
+# orphaning issues) and map to a PURPLE board option; code-side areas carry a
+# `description` and map to BLUE.
+area_labels:
+  description: >
+    Which subsystem. Multi-valued on purpose — issues routinely span two, so
+    the matching board field is MULTI_SELECT, not single-select.
+  color: "C5B8E6"
+  labels:
+    - {name: "area:girder-results",    alias: "Girder Results"}
+    - {name: "area:output-dock",       alias: "Output Dock"}
+    - {name: "area:3d-cad",            alias: "3D CAD"}
+    - {name: "area:initial-cad",       alias: "Initial CAD"}
+    - {name: "area:plots",             alias: "Plots"}
+    - {name: "area:toolbar",           alias: "Toolbar"}
+    - {name: "area:typical-section",   alias: "Typical Section Tab"}
+    - {name: "area:transverse-member", alias: "Transverse Member"}
+    - {name: "area:generate-results",  alias: "Generate Results"}
+    - {name: "area:generate-report",   alias: "Generate Report"}
+    - {name: "area:analysis-results",  alias: "Analysis Results"}
+    - {name: "area:member-properties", alias: "Member Properties - Girder and Stiffener Input"}
+    # Code-side areas, no upstream equivalent.
+    - {name: "area:design-core",       description: "IRC 22 / IS 800 design pipeline"}
+    - {name: "area:analysis-opensees", description: "Grillage model, OpenSees, ospgrillage"}
+    - {name: "area:reports",           description: "Report generator and chapters"}
+    - {name: "area:ifc-boq",           description: "IFC export and bill of quantities"}
+    - {name: "area:packaging",         description: "conda recipe and constructor installer"}
+    - {name: "area:memory-stability",  description: "Memory guard, segfaults, subprocess isolation"}
+    - {name: "area:cli",               description: "Command-line surface"}
+    - {name: "area:web",               description: "Web surface"}
+    - {name: "area:ci-cd",             description: "CI workflows and quality gates"}
+    - {name: "area:docs",              description: "Documentation"}
+
+# Upstream labels that map onto the new taxonomy. Applied when reconciling
+# labels onto the source repo so nothing is lost in translation.
+migrations:
+  "Non-Critical Bug":   "sev:S3-minor"
+  "Check & Close":      "status:check-and-close"   # v2 namespace
+  "Ready to Merge":     "status:ready-to-merge"    # v2 namespace
+  "Future development": "release:future"           # v2 namespace
+  "Suggestion":         "type:feature"
+
+# ── epics (this project's L2 layer) ──────────────────────────────────────────
+# Each becomes a `type:epic` issue whose body carries a `<!-- pm-epic:KEY -->`
+# marker, so re-running the reconciler never duplicates one. `code` is also the
+# board's Epic single-select option verbatim (the loader derives that field's
+# options from this list). `areas` must exist in `area_labels` above.
+epics:
+  marker_prefix: "epic"
+  items:
+    - code: "E1 result-traceability"
+      title: "One value, one source"
+      release: "v1.0-GA"
+      areas: [area:girder-results, area:design-core, area:output-dock]
+      outcome: >
+        Every value shown to the user resolves to exactly one source; a divergence
+        between designer, dock and report fails a test rather than shipping.
+      sub_epics:
+        - {slug: flexure,          title: "Flexure results traceable",         areas: [area:design-core]}
+        - {slug: shear,            title: "Shear results traceable",           areas: [area:design-core]}
+        - {slug: ltb,              title: "LTB results traceable",             areas: [area:design-core]}
+        - {slug: fatigue,          title: "Fatigue results traceable",         areas: [area:design-core]}
+        - {slug: stiffeners,       title: "Stiffener results traceable",       areas: [area:design-core]}
+        - {slug: shear-connectors, title: "Shear-connector results traceable", areas: [area:design-core]}
+
+    - code: "E2 input-integrity"
+      title: "Inputs are provenance-traceable, persist, and reset"
+      release: "v1.0-GA"
+      areas: [area:member-properties, area:typical-section, area:transverse-member]
+      outcome: >
+        The input dict's provenance is traceable, entered values persist across
+        the session, and defaults reset cleanly.
+
+    - code: "E3 windows-stability"
+      title: "No segfaults or OOM across repeated runs"
+      release: "v1.0-GA"
+      areas: [area:memory-stability]
+      outcome: >
+        Repeated design runs on Windows complete without segfaults or unbounded
+        memory growth.
+
+    - code: "E4 verification-harness"
+      title: "pytest + IRC 22 / IS 800 DDCL cases with a coverage gate"
+      release: "v1.0-GA"
+      areas: [area:design-core, area:ci-cd]
+      outcome: >
+        A verification harness runs IRC 22 / IS 800 DDCL cases in pytest with a
+        coverage gate on core/.
+
+    - code: "E5 ci-quality-gates"
+      title: "PR gate, lint, unified dependency manifest"
+      release: "v1.0-GA"
+      areas: [area:ci-cd]
+      outcome: >
+        Delivered by Phase 0; extends to lint enforcement and a single dependency
+        manifest.
+
+    - code: "E6 release-ga"
+      title: "Reproducible conda package + installer, Windows & Linux"
+      release: "v1.0-GA"
+      areas: [area:packaging]
+      outcome: >
+        A reproducible conda package and constructor installer build on both
+        Windows and Linux.
+
+    - code: "E7 reporting-boq"
+      title: "Report chapters, BOQ and IFC verified"
+      release: "v1.0-GA"
+      areas: [area:reports, area:ifc-boq, area:generate-report]
+      outcome: >
+        Report chapters 1–9 are consistent, and the BOQ and IFC exports are
+        verified against the design.
+
+    - code: "E8 cad-visualization"
+      title: "CAD and plots stay synced with inputs"
+      release: "v1.0-GA"
+      areas: [area:3d-cad, area:initial-cad, area:plots]
+      outcome: >
+        3D CAD, cross-section, top view and plots stay synchronised with the
+        current inputs.
+
+    - code: "E9 docs-onboarding"
+      title: "Accurate README, guides, CONTRIBUTING, CODEOWNERS"
+      release: "v1.1"
+      areas: [area:docs]
+      outcome: >
+        README, contributor guides, CONTRIBUTING and CODEOWNERS are accurate and
+        let a new contributor reach a first PR unaided.
+
+    - code: "E10 architecture-debt"
+      title: "Break up god-objects; make core/solvers real or delete it"
+      release: "v1.1"
+      areas: [area:design-core, area:analysis-opensees]
+      outcome: >
+        God-objects are decomposed and core/solvers/ is either a real abstraction
+        or removed.

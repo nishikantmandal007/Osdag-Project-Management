@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from .config import ConfigError, load_merged
 from .project import (
     GraphQL,
     ProjectError,
@@ -41,6 +42,22 @@ BUILTIN_FIELDS = {
     # Read-only timestamp fields GitHub adds to every project.
     "Closed", "Created", "Updated",
 }
+
+
+def _board_config(software: str | None) -> dict:
+    """The board's project.yml-shaped config.
+
+    ``--software NAME`` builds it from base.yml + the overlay (the
+    project-invariant path); without it, the legacy single ``config/project.yml``
+    is read. ConfigError is re-raised as ProjectError so callers need only one
+    ``except``.
+    """
+    if not software:
+        return load_project_config()
+    try:
+        return load_merged(software).board
+    except ConfigError as exc:
+        raise ProjectError(str(exc)) from exc
 
 
 def check_token(owner: str, repo: str) -> int:
@@ -184,7 +201,7 @@ def check_token(owner: str, repo: str) -> int:
     return 0
 
 
-def populate_board(owner: str, repo: str, apply: bool) -> int:
+def populate_board(owner: str, repo: str, apply: bool, software: str | None = None) -> int:
     """Add every open issue in the repo to the board.
 
     The built-in 'Auto-add' workflow only catches issues opened after it is
@@ -201,7 +218,7 @@ def populate_board(owner: str, repo: str, apply: bool) -> int:
 
     try:
         gql = GraphQL.from_env()
-        config = load_project_config()
+        config = _board_config(software)
     except ProjectError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -324,6 +341,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="backfill: add every open repo issue to the board (idempotent)",
     )
+    parser.add_argument(
+        "--software",
+        metavar="NAME",
+        help="build the board from base.yml + config/software/NAME.yml "
+             "(default: legacy config/project.yml)",
+    )
     args = parser.parse_args(argv)
 
     if args.check:
@@ -333,10 +356,10 @@ def main(argv: list[str] | None = None) -> int:
         return introspect_schema()
 
     if args.populate:
-        return populate_board(args.owner, args.repo, args.apply)
+        return populate_board(args.owner, args.repo, args.apply, software=args.software)
 
     try:
-        config = load_project_config()
+        config = _board_config(args.software)
         gql = GraphQL.from_env()
     except ProjectError as exc:
         print(f"error: {exc}", file=sys.stderr)

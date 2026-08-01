@@ -17,7 +17,7 @@ import argparse
 import re
 import sys
 
-from .config import ConfigError, EpicConfig, load_epics, load_labels
+from .config import ConfigError, EpicConfig, load_epics, load_labels, load_merged
 from .github import Client, GitHubError
 
 # Hidden, stable, and matched verbatim on re-run. KEY is the epic code for a
@@ -55,10 +55,14 @@ def _index_existing(client: Client) -> dict[str, dict]:
     return index
 
 
-def reconcile(repo: str, apply: bool) -> int:
+def reconcile(repo: str, apply: bool, software: str | None = None) -> int:
     try:
-        labels = load_labels()
-        cfg: EpicConfig = load_epics(known_labels=set(labels.by_name()) | {"type:epic"})
+        if software:
+            merged = load_merged(software)
+            cfg: EpicConfig = merged.epics
+        else:
+            labels = load_labels()
+            cfg = load_epics(known_labels=set(labels.by_name()) | {"type:epic"})
     except ConfigError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -157,8 +161,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="pm.epics", description=__doc__)
     parser.add_argument("--repo", required=True, metavar="OWNER/NAME")
     parser.add_argument("--apply", action="store_true", help="execute (default: dry-run)")
+    parser.add_argument(
+        "--software",
+        metavar="NAME",
+        help="load epics from config/software/NAME.yml (default: legacy config/epics.yml)",
+    )
     args = parser.parse_args(argv)
-    return reconcile(args.repo, args.apply)
+    return reconcile(args.repo, args.apply, software=args.software)
 
 
 if __name__ == "__main__":

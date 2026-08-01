@@ -19,7 +19,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .config import ConfigError, load_labels
+from .config import ConfigError, load_labels, load_merged
 from .github import Client, GitHubError
 from .plan import Action, Plan, plan_labels
 
@@ -86,15 +86,21 @@ def main(argv: list[str] | None = None) -> int:
         help="print the plan, change nothing (default)",
     )
     mode.add_argument("--apply", action="store_true", help="execute the plan")
-    parser.add_argument(
-        "--config", type=Path, default=None, help="path to labels.yml (default: config/labels.yml)"
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument(
+        "--software",
+        metavar="NAME",
+        help="load labels from base.yml + config/software/NAME.yml (project-invariant path)",
+    )
+    source.add_argument(
+        "--config", type=Path, default=None, help="path to a single labels.yml (legacy)"
     )
     args = parser.parse_args(argv)
 
     # Validate before contacting GitHub, so a bad config can never leave a
     # half-mutated tracker behind.
     try:
-        config = load_labels(args.config)
+        config = load_merged(args.software).labels if args.software else load_labels(args.config)
     except ConfigError as exc:
         print(f"config error:\n{exc}", file=sys.stderr)
         return 2

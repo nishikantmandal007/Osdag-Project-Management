@@ -1,0 +1,70 @@
+# Osdag — per-project overlay (starter).
+#
+# A second project on the same engine, proving the base+overlay split is
+# genuinely project-invariant: dropping this file and running
+# `bootstrap_board.py --software osdag` stands up a whole new board with its own
+# areas and epics, reusing every shared field/view from config/base.yml.
+#
+# This is a deliberately small starter, not a full Osdag PM setup. Grow the
+# `area_labels` and `epics` as the Osdag team adopts the board. `board_number`
+# is null until the board is first created (bootstrap fills it in / the board is
+# then matched by title).
+
+version: 1
+name: osdag
+display_name: "Osdag"
+short_description: "Sprints, epics and tiered bugs for Osdag."
+
+board_number: null
+logo: "https://osdag.fossee.in/sites/osdag.fossee.in/files/Logo_osdag.png"
+
+source_repos:
+  - osdag/osdag
+
+conda_channels:
+  dev:  "osdag/label/dev"
+  test: "osdag/label/test"
+  main: "osdag/label/main"
+
+area_labels:
+  description: >
+    Which Osdag subsystem. Multi-valued — a module issue often spans the design
+    core and its UI dock at once.
+  color: "C5B8E6"
+  labels:
+    - {name: "area:connection",  description: "Connection design modules"}
+    - {name: "area:member",      description: "Member (tension/compression/flexure) modules"}
+    - {name: "area:ui-dock",     description: "Input/output docks and the module UI"}
+    - {name: "area:cad",         description: "3D CAD and drawing export"}
+    - {name: "area:reports",     description: "Design report generator"}
+    - {name: "area:packaging",   description: "conda recipe and installer"}
+    - {name: "area:ci-cd",       description: "CI workflows and quality gates"}
+    - {name: "area:docs",        description: "Documentation"}
+
+migrations: {}
+
+epics:
+  marker_prefix: "epic"
+  items:
+    - code: "E1 module-correctness"
+      title: "Design output matches the code clause"
+      release: "v1.0-GA"
+      areas: [area:connection, area:member]
+      outcome: >
+        Every designed value traces to the IS 800 clause it claims to implement,
+        verified by a DDCL case rather than by eye.
+
+    - code: "E2 ui-integrity"
+      title: "Inputs persist and outputs stay in sync"
+      release: "v1.0-GA"
+      areas: [area:ui-dock]
+      outcome: >
+        Entered values persist across a session and the output dock always
+        reflects the current design, never a stale one.
+
+    - code: "E3 release-ga"
+      title: "Reproducible conda package + installer"
+      release: "v1.0-GA"
+      areas: [area:packaging]
+      outcome: >
+        A reproducible conda package and installer build on Windows and Linux.

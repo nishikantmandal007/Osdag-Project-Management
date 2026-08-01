@@ -1,0 +1,184 @@
+# Project-invariant base — the shared half of every board.
+#
+# One engine (pm/) runs several FOSSEE-project boards (Osdag, OsdagBridge, …).
+# What is IDENTICAL across those projects lives here; what DIFFERS lives in a
+# per-project overlay `config/software/<name>.yml`. `pm.config.load_merged(name)`
+# deep-merges the two into the same document shapes the single-file loaders used
+# to validate, so nothing downstream had to change.
+#
+# In this file:
+#   - the `type:` and `sev:` label namespaces (the two triage decisions that
+#     mean the same thing on every project),
+#   - the `protected` labels the reconciler must never touch,
+#   - the shared board fields (Status, Sprint, Priority, Severity, Size, Points,
+#     Target release, Start/Target date) and the six board views.
+#
+# NOT here — supplied by the overlay and stitched in by the loader:
+#   - the `area:` namespace (subsystems differ per project),
+#   - the epics,
+#   - the board's Epic and Area fields. Those two appear below as `derived:`
+#     placeholders (see `fields`); the loader fills their options from the
+#     overlay so the epic list and area labels are never written twice.
+
+version: 1
+
+# ── shared label namespaces ──────────────────────────────────────────────────
+# `area:` is deliberately absent — it comes from the overlay.
+namespaces:
+
+  type:
+    description: What kind of work this is.
+    color: "1D76DB"
+    labels:
+      - {name: "type:epic",    description: "Outcome-level container; closes when the outcome is achieved"}
+      - {name: "type:feature", description: "New user-facing capability"}
+      - {name: "type:story",   description: "Sprint-sized unit of user value"}
+      - {name: "type:bug",     description: "Something behaves incorrectly"}
+      - {name: "type:task",    description: "Sprint-sized unit of work with no direct user story"}
+      - {name: "type:chore",   description: "Maintenance; no behaviour change"}
+      - {name: "type:spike",   description: "Time-boxed investigation; output is a decision"}
+      - {name: "type:docs",    description: "Documentation only"}
+      - {name: "type:test",    description: "Verification case or test harness work"}
+
+  sev:
+    description: >
+      Impact if never fixed. Objective, set by the reporter or at triage.
+      Distinct from priority, which is when we schedule it.
+    labels:
+      - name: "sev:S1-critical"
+        color: "B60205"
+        description: "Wrong structural output presented as correct, crash, or release blocker"
+        triage_sla: "1 business day"
+        fix_sla: "current sprint"
+      - name: "sev:S2-major"
+        color: "D93F0B"
+        description: "Feature unusable or value unverifiable; workaround exists"
+        triage_sla: "2 business days"
+        fix_sla: "current sprint"
+      - name: "sev:S3-minor"
+        color: "FBCA04"
+        description: "Incorrect display or inconsistency with no safety impact"
+        triage_sla: "5 business days"
+        fix_sla: "within 2 sprints"
+      - name: "sev:S4-cosmetic"
+        color: "C2E0C6"
+        description: "Polish: hover, alignment, spacing"
+        triage_sla: "next grooming"
+        fix_sla: "unbounded"
+
+# Never touched by the reconciler, even in report-only mode: GitHub ships these
+# and other tooling depends on them.
+protected:
+  - bug
+  - documentation
+  - duplicate
+  - enhancement
+  - good first issue
+  - help wanted
+  - invalid
+  - question
+  - wontfix
+  - dependencies
+
+# ── shared board fields ──────────────────────────────────────────────────────
+# Everything here is created through GraphQL (see pm/project.py). The two
+# `derived:` entries are placeholders: the loader replaces them with an
+# `options:` list built from the overlay, keeping field ORDER intact
+# (Status, Sprint, Priority, Severity, Size, Points, Epic, Area, Target
+# release, Start date, Target date).
+fields:
+  - name: Status
+    type: SINGLE_SELECT
+    options:
+      - {name: "Backlog",      color: GRAY,   description: "Not yet planned into a sprint"}
+      - {name: "Triage",       color: ORANGE, description: "Needs severity, area and an owner"}
+      - {name: "Ready",        color: BLUE,   description: "Meets Definition of Ready; can be picked up"}
+      - {name: "In Progress",  color: YELLOW, description: "Someone is actively working on it"}
+      - {name: "In Review",    color: PURPLE, description: "PR open, awaiting review"}
+      - {name: "QA / Verify",  color: PINK,   description: "Merged; being verified against the issue"}
+      - {name: "Blocked",      color: RED,    description: "Cannot progress; blocker named in the issue"}
+      - {name: "Done",         color: GREEN,  description: "Verified and closed"}
+
+  # 2-week iterations. GraphQL generates the numbered sprints from here;
+  # this is what replaces Maya's "Sprint 51:" title-prefix convention.
+  - name: Sprint
+    type: ITERATION
+    duration_days: 14
+    start_date: "2026-08-03"   # Monday
+
+  - name: Priority
+    type: SINGLE_SELECT
+    options:
+      - {name: "P0-now",      color: RED,    description: "Preempts current sprint work"}
+      - {name: "P1-sprint",   color: ORANGE, description: "This sprint"}
+      - {name: "P2-next",     color: YELLOW, description: "Within two sprints"}
+      - {name: "P3-backlog",  color: GRAY,   description: "Unbounded"}
+
+  - name: Severity
+    type: SINGLE_SELECT
+    options:
+      - {name: "S1-critical", color: RED,    description: "Wrong structural output presented as correct, crash, or blocker"}
+      - {name: "S2-major",    color: ORANGE, description: "Feature unusable or value unverifiable; workaround exists"}
+      - {name: "S3-minor",    color: YELLOW, description: "Incorrect display, no safety impact"}
+      - {name: "S4-cosmetic", color: GREEN,  description: "Polish"}
+
+  - name: Size
+    type: SINGLE_SELECT
+    options:
+      - {name: "XS", color: GREEN,  description: "Up to 2 hours"}
+      - {name: "S",  color: BLUE,   description: "Up to 1 day"}
+      - {name: "M",  color: YELLOW, description: "Up to 3 days"}
+      - {name: "L",  color: ORANGE, description: "Up to 1 week"}
+      - {name: "XL", color: RED,    description: "Too big - split it before starting"}
+
+  - name: Points
+    type: NUMBER
+
+  # Epic options come from the overlay's `epics.items` (one option per epic
+  # `code`); Area options from the overlay's `area_labels` (UI areas purple,
+  # code areas blue). Declared here only to pin their position and type.
+  - name: Epic
+    type: SINGLE_SELECT
+    derived: epic
+
+  - name: Area
+    type: MULTI_SELECT
+    derived: area
+
+  - name: Target release
+    type: SINGLE_SELECT
+    options:
+      - {name: "v1.0-GA", color: GREEN,  description: ""}
+      - {name: "v1.1",    color: BLUE,   description: ""}
+      - {name: "v2.0",    color: GRAY,   description: ""}
+      - {name: "future",  color: GRAY,   description: "Parked; not staffed"}
+
+  # ROADMAP_LAYOUT needs date fields to render anything. Without these the
+  # Epic Roadmap view is blank - caught in review before it shipped.
+  - name: Start date
+    type: DATE
+  - name: Target date
+    type: DATE
+
+# ── shared board views ───────────────────────────────────────────────────────
+# Views are created without a filter (CreateProjectV2ViewInput has no filter
+# input) and then updated with one. Verified against the live schema.
+views:
+  - name: "Current Sprint"
+    layout: BOARD_LAYOUT
+    filter: "sprint:@current -status:Done"
+  - name: "Triage Queue"
+    layout: TABLE_LAYOUT
+    filter: "label:status:needs-triage sort:created-asc"
+  - name: "Backlog Grooming"
+    layout: TABLE_LAYOUT
+    filter: "no:sprint -label:type:epic is:open"
+  - name: "Epic Roadmap"
+    layout: ROADMAP_LAYOUT
+    filter: "label:type:epic"
+  - name: "Release v1.0-GA"
+    layout: BOARD_LAYOUT
+    filter: "milestone:v1.0-GA"
+  - name: "By Owner"
+    layout: BOARD_LAYOUT
+    filter: "sprint:@current is:open"

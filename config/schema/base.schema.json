@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/nishikantmandal007/osdagbridge-pm/config/schema/base.schema.json",
+  "title": "Project-invariant base config",
+  "description": "The shared half of every board: type/sev namespaces, protected labels, shared board fields and views. The area namespace and epics come from a per-project overlay.",
+  "type": "object",
+  "required": ["version", "namespaces", "fields", "views"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"type": "integer", "minimum": 1},
+    "namespaces": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[a-z]+$"},
+      "additionalProperties": {"$ref": "#/$defs/namespace"}
+    },
+    "protected": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/field"}
+    },
+    "views": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/view"}
+    }
+  },
+  "$defs": {
+    "color": {"type": "string", "pattern": "^[0-9a-fA-F]{6}$"},
+    "namespace": {
+      "type": "object",
+      "required": ["labels"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {"type": "string"},
+        "color": {"$ref": "#/$defs/color"},
+        "labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/label"}
+        }
+      }
+    },
+    "label": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 50},
+        "description": {"type": "string", "maxLength": 100},
+        "color": {"$ref": "#/$defs/color"},
+        "alias": {"type": "string", "minLength": 1, "maxLength": 50},
+        "triage_sla": {"type": "string"},
+        "fix_sla": {"type": "string"}
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "type": {
+          "type": "string",
+          "enum": ["SINGLE_SELECT", "MULTI_SELECT", "ITERATION", "DATE", "NUMBER", "TEXT"]
+        },
+        "derived": {
+          "type": "string",
+          "enum": ["epic", "area"],
+          "description": "Options are filled by the loader from the overlay (epics / area_labels)."
+        },
+        "options": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/option"}
+        },
+        "duration_days": {"type": "integer", "minimum": 1},
+        "start_date": {"type": "string"}
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "color": {"type": "string"},
+        "description": {"type": "string"}
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["name", "layout"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "layout": {
+          "type": "string",
+          "enum": ["BOARD_LAYOUT", "TABLE_LAYOUT", "ROADMAP_LAYOUT"]
+        },
+        "filter": {"type": "string"}
+      }
+    }
+  }
+}
