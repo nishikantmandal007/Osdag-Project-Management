@@ -10,8 +10,10 @@
 #   - the `type:` and `sev:` label namespaces (the two triage decisions that
 #     mean the same thing on every project),
 #   - the `protected` labels the reconciler must never touch,
-#   - the shared board fields (Status, Sprint, Priority, Severity, Size, Points,
-#     Target release, Start/Target date) and the six board views.
+#   - the shared board fields (Status — dev flow ending at Merged; Sprint,
+#     Priority, Severity, Size, Points, Target release, Deploy stage — the
+#     separate release-lifecycle axis, Start/Target date) and the board views
+#     (incl. the Release pipeline view).
 #
 # NOT here — supplied by the overlay and stitched in by the loader:
 #   - the `area:` namespace (subsystems differ per project),
@@ -95,6 +97,7 @@ fields:
       - {name: "Ready",        color: BLUE,   description: "Meets Definition of Ready; can be picked up"}
       - {name: "In Progress",  color: YELLOW, description: "Someone is actively working on it"}
       - {name: "In Review",    color: PURPLE, description: "PR open, awaiting review"}
+      - {name: "Merged",       color: BLUE,   description: "PR merged to the default branch; dev work done. Release progress is tracked on the Deploy stage field, not here"}
       - {name: "QA / Verify",  color: PINK,   description: "Merged; being verified against the issue"}
       - {name: "Blocked",      color: RED,    description: "Cannot progress; blocker named in the issue"}
       - {name: "Done",         color: GREEN,  description: "Verified and closed"}
@@ -153,6 +156,18 @@ fields:
       - {name: "v2.0",    color: GRAY,   description: ""}
       - {name: "future",  color: GRAY,   description: "Parked; not staffed"}
 
+  # Release lifecycle — a SEPARATE axis from Status (Status is the dev flow that
+  # ends at Merged; this tracks the merged artifact through the conda channels).
+  # Blank = not yet deployed. Set by the conda release pipeline (see SOP-06 / E6),
+  # one stage per channel: dev -> test -> main.
+  - name: Deploy stage
+    type: SINGLE_SELECT
+    options:
+      - {name: "Dev",            color: GRAY,   description: "Built and uploaded to the dev conda channel"}
+      - {name: "Test",           color: YELLOW, description: "Promoted to the test channel (RC)"}
+      - {name: "Ready for Prod", color: BLUE,   description: "Verified on test; cleared for the main channel"}
+      - {name: "In Production",  color: GREEN,  description: "Released on the main channel"}
+
   # ROADMAP_LAYOUT needs date fields to render anything. Without these the
   # Epic Roadmap view is blank - caught in review before it shipped.
   - name: Start date
@@ -182,3 +197,9 @@ views:
   - name: "By Owner"
     layout: BOARD_LAYOUT
     filter: "sprint:@current is:open"
+  # Post-merge items moving through the conda channels. Group this board by the
+  # Deploy stage field in the UI (GitHub exposes no create/update mutation for a
+  # view's group-by — it is a one-time manual toggle, like the 5 workflows).
+  - name: "Release pipeline"
+    layout: BOARD_LAYOUT
+    filter: "status:Merged,Done"

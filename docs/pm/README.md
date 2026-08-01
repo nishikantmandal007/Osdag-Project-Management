@@ -96,10 +96,17 @@ backlog and would otherwise blow past GitHub's 100-child ceiling. See
 | **Epic Roadmap** | Roadmap | How are the outcomes tracking over time? |
 | **Release v1.0-GA** | Board | What's blocking the release? |
 | **By Owner** | Board | Who's carrying what this sprint? |
+| **Release pipeline** | Board | What's merged and where is it in the conda channels? (group by **Deploy stage**) |
 
 **Current Sprint is empty until you sprint-plan** — nothing is assigned to a
 sprint on a freshly seeded backlog. That is correct, not a bug. See
 [SOP-03 Sprint cadence](SOP-03-sprint-cadence.md).
+
+**Status vs Deploy stage — two axes.** **Status** is the dev flow and ends at
+**Merged** (PR merged to the default branch). Once merged, an item's release
+progress is tracked on the separate **Deploy stage** field
+(`Dev → Test → Ready for Prod → In Production`, blank = not deployed), set by the
+conda release pipeline (see [SOP-06](SOP-06-seeding-promotion.md) / epic E6).
 
 ---
 

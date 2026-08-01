@@ -46,29 +46,38 @@ def test_merged_epics_match_monolithic():
     assert merged.epics.epics == legacy.epics
 
 
-def test_merged_board_reproduces_fields_and_views():
-    """Derived Epic/Area options and shared fields/views reproduce project.yml.
+def _subsequence(sub: list, whole: list) -> bool:
+    """True if `sub` appears in `whole` in order (gaps allowed)."""
+    it = iter(whole)
+    return all(item in it for item in sub)
 
-    Field options are compared by (name, colour) — the functional contract the
-    reconciler creates from. Option *descriptions* are cosmetic (never
-    reconciled after a field is first created) and are intentionally derived
-    from the single source (epic titles / area labels), so they are not asserted.
+
+def test_merged_board_reproduces_fields_and_views():
+    """Every legacy field/view/option is still present — nothing was dropped.
+
+    The base+overlay split must never LOSE anything the monolith had, but later
+    deliverables deliberately ADD to the board (Task #6: a "Deploy stage" field,
+    a "Merged" Status option, a "Release pipeline" view). So this asserts the
+    legacy board is an order-preserving SUBSET of the merged one, rather than an
+    exact match. Options are compared by (name, colour) — the functional contract
+    the reconciler creates from; descriptions are cosmetic and not asserted.
     """
     board = load_merged("osdagbridge").board
     legacy = load_project_config()
 
-    # The board title is the ONE intentional divergence from the retired
-    # monolith: the "Osdag Project Management" suite renames board #3
-    # "OsdagBridge Delivery" -> "OsdagBridge" (a one-time updateProjectV2 via
-    # `pm.bootstrap_board --rename-from`). Everything else is lossless, so the
-    # short description and every field/view still match exactly.
+    # The board title is an intentional divergence from the retired monolith:
+    # the "Osdag Project Management" suite renames board #3 "OsdagBridge Delivery"
+    # -> "OsdagBridge" (a one-time updateProjectV2 via `--rename-from`). The short
+    # description is unchanged.
     assert board["project"]["title"] == "OsdagBridge"
     assert legacy["project"]["title"] == "OsdagBridge Delivery"
     assert board["project"]["short_description"] == legacy["project"]["short_description"]
 
     merged_fields = {f["name"]: f for f in board["fields"]}
     legacy_fields = {f["name"]: f for f in legacy["fields"]}
-    assert list(merged_fields) == list(legacy_fields)  # same fields, same order
+    # Every legacy field survives, in the same relative order (extras may sit
+    # between them).
+    assert _subsequence(list(legacy_fields), list(merged_fields))
 
     for name, lf in legacy_fields.items():
         mf = merged_fields[name]
@@ -76,9 +85,29 @@ def test_merged_board_reproduces_fields_and_views():
         if "options" in lf:
             merged_opts = [(o["name"], o.get("color")) for o in mf["options"]]
             legacy_opts = [(o["name"], o.get("color")) for o in lf["options"]]
-            assert merged_opts == legacy_opts, name
+            # Legacy options are all still there, in order; new ones (e.g. the
+            # "Merged" Status terminal) may be interleaved.
+            assert _subsequence(legacy_opts, merged_opts), name
 
-    assert board["views"] == legacy["views"]
+    merged_views = [v["name"] for v in board["views"]]
+    legacy_views = [v["name"] for v in legacy["views"]]
+    assert _subsequence(legacy_views, merged_views)
+
+
+def test_deploy_stage_field_and_merged_status_and_release_view():
+    """Task #6 additions: release-lifecycle axis separate from the dev flow."""
+    board = load_merged("osdagbridge").board
+
+    status = next(f for f in board["fields"] if f["name"] == "Status")
+    assert "Merged" in [o["name"] for o in status["options"]]
+
+    deploy = next(f for f in board["fields"] if f["name"] == "Deploy stage")
+    assert deploy["type"] == "SINGLE_SELECT"
+    assert [o["name"] for o in deploy["options"]] == [
+        "Dev", "Test", "Ready for Prod", "In Production",
+    ]
+
+    assert "Release pipeline" in [v["name"] for v in board["views"]]
 
 
 def test_merged_epic_field_options_are_the_epic_codes():
