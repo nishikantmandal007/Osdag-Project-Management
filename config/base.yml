@@ -10,17 +10,20 @@
 #   - the `type:` and `sev:` label namespaces (the two triage decisions that
 #     mean the same thing on every project),
 #   - the `protected` labels the reconciler must never touch,
-#   - the shared board fields (Status — dev flow ending at Merged; Sprint,
-#     Priority, Severity, Size, Points, Target release, Deploy stage — the
-#     separate release-lifecycle axis, Start/Target date) and the board views
-#     (incl. the Release pipeline view).
+#   - the shared board fields. Status is a SINGLE axis (Maya-style): the dev flow
+#     and the release lifecycle live in one column — In Review -> Live in Dev ->
+#     Ready for Test -> Ready for Prod -> In Production -> Done — so a card's one
+#     Status tells you both "is it built?" and "is it shipped?". Also here: Type,
+#     Sprint, Priority, Severity, Size, Points, Target release, Start/Target date.
+#   - the board views (Current Sprint table, Workload, By Team, By Type, the
+#     Release pipeline, …).
 #
 # NOT here — supplied by the overlay and stitched in by the loader:
 #   - the `area:` namespace (subsystems differ per project),
-#   - the epics,
-#   - the board's Epic and Area fields. Those two appear below as `derived:`
+#   - the epics and the teams (people and subsystems differ per project),
+#   - the board's Epic, Area and Team fields. Those appear below as `derived:`
 #     placeholders (see `fields`); the loader fills their options from the
-#     overlay so the epic list and area labels are never written twice.
+#     overlay so the epic list, area labels and team names are never written twice.
 
 version: 1
 
@@ -83,24 +86,33 @@ protected:
   - dependencies
 
 # ── shared board fields ──────────────────────────────────────────────────────
-# Everything here is created through GraphQL (see project_management/project.py). The two
+# Everything here is created through GraphQL (see project_management/project.py). The three
 # `derived:` entries are placeholders: the loader replaces them with an
 # `options:` list built from the overlay, keeping field ORDER intact
-# (Status, Sprint, Priority, Severity, Size, Points, Epic, Area, Target
-# release, Start date, Target date).
+# (Status, Sprint, Type, Priority, Severity, Size, Points, Epic, Area, Team,
+# Target release, Start date, Target date).
 fields:
+  # ONE column, Maya-style: the dev flow and the release lifecycle are the same
+  # axis. A card climbs In Review -> Live in Dev -> Ready for Test -> Ready for
+  # Prod -> In Production -> Done, so its single Status answers both "built?" and
+  # "shipped?". The lifecycle tail (Live in Dev onward) is what the conda release
+  # pipeline advances (SOP-11 / E6). Blocked and On-Hold are off-flow parks.
   - name: Status
     type: SINGLE_SELECT
     options:
-      - {name: "Backlog",      color: GRAY,   description: "Not yet planned into a sprint"}
-      - {name: "Triage",       color: ORANGE, description: "Needs severity, area and an owner"}
-      - {name: "Ready",        color: BLUE,   description: "Meets Definition of Ready; can be picked up"}
-      - {name: "In Progress",  color: YELLOW, description: "Someone is actively working on it"}
-      - {name: "In Review",    color: PURPLE, description: "PR open, awaiting review"}
-      - {name: "Merged",       color: BLUE,   description: "PR merged to the default branch; dev work done. Release progress is tracked on the Deploy stage field, not here"}
-      - {name: "QA / Verify",  color: PINK,   description: "Merged; being verified against the issue"}
-      - {name: "Blocked",      color: RED,    description: "Cannot progress; blocker named in the issue"}
-      - {name: "Done",         color: GREEN,  description: "Verified and closed"}
+      - {name: "Backlog",        color: GRAY,   description: "Not yet planned into a sprint"}
+      - {name: "Triage",         color: ORANGE, description: "Needs severity, area and an owner"}
+      - {name: "Ready",          color: BLUE,   description: "Meets Definition of Ready; can be picked up"}
+      - {name: "In Progress",    color: YELLOW, description: "Someone is actively working on it"}
+      - {name: "In Review",      color: PURPLE, description: "PR open, awaiting review"}
+      - {name: "Live in Dev",    color: BLUE,   description: "PR merged to the default (dev) branch; running in Dev"}
+      - {name: "QA / Verify",    color: PINK,   description: "Being verified against the issue before it moves down the pipeline"}
+      - {name: "Ready for Test", color: YELLOW, description: "Cleared dev QA; promoted to the test conda channel (RC)"}
+      - {name: "Ready for Prod", color: ORANGE, description: "Verified on test; cleared for the main channel"}
+      - {name: "In Production",  color: GREEN,  description: "Released on the main conda channel"}
+      - {name: "Blocked",        color: RED,    description: "Cannot progress; blocker named in the issue"}
+      - {name: "On-Hold",        color: GRAY,   description: "Parked / deprioritised; not currently staffed"}
+      - {name: "Done",           color: GREEN,  description: "Verified and closed"}
 
   # 2-week iterations. GraphQL generates the numbered sprints from here;
   # this is what replaces Maya's "Sprint 51:" title-prefix convention.
@@ -108,6 +120,23 @@ fields:
     type: ITERATION
     duration_days: 14
     start_date: "2026-08-03"   # Monday
+
+  # Kind of work, as a board column (Maya's "Type"). Mirrors the `type:` label
+  # namespace so the board can GROUP by it (labels can be filtered but not
+  # grouped) — that is what powers the "By Type" view. The label stays the
+  # source of truth on the issue; this field is its board-visible echo.
+  - name: Type
+    type: SINGLE_SELECT
+    options:
+      - {name: "Epic",    color: PURPLE, description: "Outcome-level container"}
+      - {name: "Feature", color: GREEN,  description: "New user-facing capability"}
+      - {name: "Story",   color: BLUE,   description: "Sprint-sized unit of user value"}
+      - {name: "Bug",     color: RED,    description: "Something behaves incorrectly"}
+      - {name: "Task",    color: YELLOW, description: "Sprint-sized work with no direct user story"}
+      - {name: "Chore",   color: GRAY,   description: "Maintenance; no behaviour change"}
+      - {name: "Spike",   color: ORANGE, description: "Time-boxed investigation"}
+      - {name: "Docs",    color: GRAY,   description: "Documentation only"}
+      - {name: "Test",    color: PINK,   description: "Verification case or test harness work"}
 
   - name: Priority
     type: SINGLE_SELECT
@@ -148,6 +177,15 @@ fields:
     type: MULTI_SELECT
     derived: area
 
+  # Which team owns the card. Options come from the overlay's `teams` block (one
+  # option per team name); the team's lead and members live there too, for the
+  # "By Team" view and the reporting lines docs describe. Declared here only to
+  # pin its position and type. GitHub can't enforce "reports to the lead" — that
+  # structure is config + convention, not a platform feature.
+  - name: Team
+    type: SINGLE_SELECT
+    derived: team
+
   - name: Target release
     type: SINGLE_SELECT
     options:
@@ -155,18 +193,6 @@ fields:
       - {name: "v1.1",    color: BLUE,   description: ""}
       - {name: "v2.0",    color: GRAY,   description: ""}
       - {name: "future",  color: GRAY,   description: "Parked; not staffed"}
-
-  # Release lifecycle — a SEPARATE axis from Status (Status is the dev flow that
-  # ends at Merged; this tracks the merged artifact through the conda channels).
-  # Blank = not yet deployed. Set by the conda release pipeline (see SOP-06 / E6),
-  # one stage per channel: dev -> test -> main.
-  - name: Deploy stage
-    type: SINGLE_SELECT
-    options:
-      - {name: "Dev",            color: GRAY,   description: "Built and uploaded to the dev conda channel"}
-      - {name: "Test",           color: YELLOW, description: "Promoted to the test channel (RC)"}
-      - {name: "Ready for Prod", color: BLUE,   description: "Verified on test; cleared for the main channel"}
-      - {name: "In Production",  color: GREEN,  description: "Released on the main channel"}
 
   # ROADMAP_LAYOUT needs date fields to render anything. Without these the
   # Epic Roadmap view is blank - caught in review before it shipped.
@@ -179,9 +205,32 @@ fields:
 # Views are created without a filter (CreateProjectV2ViewInput has no filter
 # input) and then updated with one. Verified against the live schema.
 views:
+  # The at-a-glance sprint view, Maya-style: a TABLE, one row per card, columns
+  # Title / Status / Assignees / Type / Sprint / … The board layout lives on the
+  # Workload view below instead.
   - name: "Current Sprint"
+    layout: TABLE_LAYOUT
+    filter: "sprint:@current -status:Done,On-Hold"
+  # Who is carrying how much this sprint (merges the old "By Owner" — it had the
+  # identical filter). Group this board by Assignees in the UI (GitHub exposes no
+  # create/update mutation for a view's group-by — a one-time manual toggle, like
+  # the built-in workflows): each person becomes a column, column height = load.
+  - name: "Workload"
     layout: BOARD_LAYOUT
-    filter: "sprint:@current -status:Done"
+    filter: "sprint:@current is:open"
+  # Every open card by owning team. Group this board by the Team field in the UI
+  # (same one-time manual toggle). Each team's lead + members are in the overlay's
+  # `teams` block — that is the "who reports to whom" structure GitHub can't model.
+  - name: "By Team"
+    layout: BOARD_LAYOUT
+    filter: "is:open"
+  # Everything categorised by kind — the epics, bugs, features, tasks columns.
+  # Group this board by the Type field in the UI (labels can be filtered but not
+  # grouped, which is why Type is also a field). One place to see all epics and
+  # all bugs at once.
+  - name: "By Type"
+    layout: BOARD_LAYOUT
+    filter: "is:open"
   - name: "Triage Queue"
     layout: TABLE_LAYOUT
     filter: "label:status:needs-triage sort:created-asc"
@@ -194,19 +243,9 @@ views:
   - name: "Release v1.0-GA"
     layout: BOARD_LAYOUT
     filter: "milestone:v1.0-GA"
-  - name: "By Owner"
-    layout: BOARD_LAYOUT
-    filter: "sprint:@current is:open"
-  # Post-merge items moving through the conda channels. Group this board by the
-  # Deploy stage field in the UI (GitHub exposes no create/update mutation for a
-  # view's group-by — it is a one-time manual toggle, like the 5 workflows).
+  # The release lifecycle tail of the single Status axis: cards that are merged
+  # and moving through the conda channels. Group this board by Status in the UI
+  # (one-time manual toggle) to see the Live in Dev -> … -> In Production pipeline.
   - name: "Release pipeline"
     layout: BOARD_LAYOUT
-    filter: "status:Merged,Done"
-  # Who is carrying how much this sprint. Group this board by Assignees in the UI
-  # (same one-time manual toggle as above) — each person becomes a column and the
-  # column height is their load. The board Insights tab also charts this as a bar
-  # chart by assignee. See SOP-08 (Workload) and SOP-09.
-  - name: "Workload"
-    layout: BOARD_LAYOUT
-    filter: "sprint:@current is:open"
+    filter: 'status:"Live in Dev","Ready for Test","Ready for Prod","In Production"'

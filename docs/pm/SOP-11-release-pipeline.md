@@ -2,10 +2,11 @@
 
 **Epic:** E6 release-ga. **Status:** designed, documented here; the workflow
 template ships in [`templates/release.yml`](templates/release.yml), the board-update
-step is not yet wired (see "Wiring the board update"). This is the release half of
-the board's two axes — **Status** is the dev flow (ends at *Merged*); **Deploy
-stage** is where a merged artifact sits in the release channels
-([SOP-08](SOP-08-board-views.md)).
+step is not yet wired (see "Wiring the board update"). This is the release tail of
+the board's **single** Status axis (Maya-style): the dev flow and the release
+lifecycle are one column, so a card climbs In Review → *Live in Dev* → Ready for
+Test → Ready for Prod → In Production → Done. There is no separate *Deploy stage*
+field — this pipeline advances **Status** ([SOP-08](SOP-08-board-views.md)).
 
 ---
 
@@ -34,18 +35,17 @@ Users install a stage with, e.g., `conda install -c osdag/label/test osdag`.
 
 ## The three promotions
 
-| Trigger (on the **code** repo) | conda action | Board **Deploy stage** |
+| Trigger (on the **code** repo) | conda action | Board **Status** |
 |---|---|---|
-| Merge to the default branch | build → `upload --label dev` | **Dev** |
-| Push a `v*-rc*` tag | `copy --from-label dev --to-label test` | **Test** |
+| Merge to the default branch | build → `upload --label dev` | **Live in Dev** |
+| Push a `v*-rc*` tag | `copy --from-label dev --to-label test` | **Ready for Test** |
 | *(human QA gate — see below)* | *(none)* | **Ready for Prod** |
 | Publish a GitHub Release | `copy --from-label test --to-label main` | **In Production** |
 
-Three of the four Deploy-stage options are set automatically. **Ready for Prod**
+Three of the four release Status values are set automatically. **Ready for Prod**
 is deliberately **manual**: it means "the RC on `test` has been QA'd and we intend
 to ship it." A lead sets it by hand on the board before cutting the GitHub Release,
-so the field records a human decision, not just a pipeline event. Blank = not
-deployed (still in the dev flow).
+so the Status records a human decision, not just a pipeline event.
 
 ---
 
@@ -58,7 +58,7 @@ On the **code** repo (not the PM repo), two secrets:
   access to the API site* and the specific org.
 - **`GH_PM_TOKEN`** — the same fine-grained PAT class the reconciler uses
   ([SOP-05](SOP-05-reconciler.md)), with **Account → Projects: Read and write**, so
-  the release job can move the board's Deploy stage. Store it on the code repo too
+  the release job can move the board's Status. Store it on the code repo too
   (secrets don't cross repos).
 
 Set them with:
@@ -79,7 +79,7 @@ on the code repo and fill the three `TODO`s:
    (`packaging/conda/` in the template; use the repo's actual recipe dir).
 2. **`PKG_SPEC`** — `osdag/PACKAGE/VERSION`, resolved from the tag/release for the
    `copy` steps.
-3. **`scripts/set-deploy-stage.sh`** — the board-update step (below).
+3. **`scripts/set-board-status.sh`** — the board-update step (below).
 
 The template already follows the two hard security rules: least-privilege
 `permissions:` (only `contents: read`; the board write uses `GH_PM_TOKEN`, not
@@ -91,25 +91,25 @@ are attacker-controlled on a public repo, so they're passed via `env:`.
 
 ## Wiring the board update (not yet built)
 
-Each promotion should move the Deploy stage on the board item for the shipped
-work. The step is stubbed as `scripts/set-deploy-stage.sh` because it needs one
+Each promotion should move the Status on the board item for the shipped
+work. The step is stubbed as `scripts/set-board-status.sh` because it needs one
 GraphQL mutation the engine doesn't expose yet:
 
 ```
 updateProjectV2ItemFieldValue(input: {
   projectId: <board node id>,
   itemId:    <the board item for this issue/PR>,
-  fieldId:   <the "Deploy stage" field id>,
-  value:     { singleSelectOptionId: <option id for $DEPLOY_STAGE> }
+  fieldId:   <the "Status" field id>,
+  value:     { singleSelectOptionId: <option id for $STATUS_VALUE> }
 })
 ```
 
 To wire it, the script resolves the four ids (project, item, field, option) with
-`GH_PM_TOKEN` and calls the mutation with `$DEPLOY_STAGE` from the job's `env:`.
+`GH_PM_TOKEN` and calls the mutation with `$STATUS_VALUE` from the job's `env:`.
 The reconciler already fetches project/field/option ids
 (`project_management/project.py`), so the intended home is a small
-`project_management.set_deploy_stage --software NAME --item <id> --stage "Test"`
-subcommand the workflow calls — tracked under **E6**. Until then the field is set
+`project_management.set_board_status --software NAME --item <id> --status "Ready for Test"`
+subcommand the workflow calls — tracked under **E6**. Until then the Status is set
 by hand, and the conda promotions still work on their own.
 
 ---
@@ -123,5 +123,5 @@ by hand, and the conda promotions still work on their own.
 - **Release promotes to `main`:** the version installable with
   `conda install -c osdag osdag` matches the tested RC.
 - **Board reflects it:** the **Release pipeline** view
-  ([SOP-08](SOP-08-board-views.md), grouped by Deploy stage) shows the item under
+  ([SOP-08](SOP-08-board-views.md), grouped by Status) shows the item under
   the expected column — once the board-update step is wired.

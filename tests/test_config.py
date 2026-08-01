@@ -27,12 +27,12 @@ from project_management.config import (
 # explicit contract the reconciler builds from — a dropped field would silently
 # discard every value set on it, so this list is deliberately spelled out.
 EXPECTED_FIELDS = [
-    "Status", "Sprint", "Priority", "Severity", "Size", "Points",
-    "Epic", "Area", "Target release", "Deploy stage", "Start date", "Target date",
+    "Status", "Sprint", "Type", "Priority", "Severity", "Size", "Points",
+    "Epic", "Area", "Team", "Target release", "Start date", "Target date",
 ]
 EXPECTED_VIEWS = [
-    "Current Sprint", "Triage Queue", "Backlog Grooming", "Epic Roadmap",
-    "Release v1.0-GA", "By Owner", "Release pipeline", "Workload",
+    "Current Sprint", "Workload", "By Team", "By Type", "Triage Queue",
+    "Backlog Grooming", "Epic Roadmap", "Release v1.0-GA", "Release pipeline",
 ]
 
 
@@ -47,20 +47,39 @@ def test_merged_board_has_expected_fields_and_views():
     assert [v["name"] for v in board["views"]] == EXPECTED_VIEWS
 
 
-def test_deploy_stage_field_and_merged_status_and_release_view():
-    """Task #6 additions: release-lifecycle axis separate from the dev flow."""
+def test_status_is_single_axis_with_release_lifecycle_folded_in():
+    """Maya-style: dev flow and release lifecycle are one Status column. The
+    deploy stages (Live in Dev … In Production) live IN Status, not a separate
+    Deploy stage field, and the Release pipeline view reads that tail."""
     board = load_merged("osdagbridge").board
 
     status = next(f for f in board["fields"] if f["name"] == "Status")
-    assert "Merged" in [o["name"] for o in status["options"]]
+    names = [o["name"] for o in status["options"]]
+    for stage in ["Live in Dev", "Ready for Test", "Ready for Prod", "In Production"]:
+        assert stage in names
+    assert "Merged" not in names  # folded into "Live in Dev"
 
-    deploy = next(f for f in board["fields"] if f["name"] == "Deploy stage")
-    assert deploy["type"] == "SINGLE_SELECT"
-    assert [o["name"] for o in deploy["options"]] == [
-        "Dev", "Test", "Ready for Prod", "In Production",
-    ]
+    # The separate Deploy stage field is gone — one axis, not two.
+    assert "Deploy stage" not in [f["name"] for f in board["fields"]]
 
     assert "Release pipeline" in [v["name"] for v in board["views"]]
+
+
+def test_team_field_options_come_from_overlay_teams():
+    """The Team board field is derived from the overlay's `teams` block."""
+    merged = load_merged("osdagbridge")
+    team_field = next(f for f in merged.board["fields"] if f["name"] == "Team")
+    assert team_field["type"] == "SINGLE_SELECT"
+    option_names = [o["name"] for o in team_field["options"]]
+    assert "UI" in option_names and "Design Core" in option_names
+
+
+def test_type_field_mirrors_the_type_namespace():
+    """The board-visible Type column carries the same kinds as the `type:` labels."""
+    board = load_merged("osdagbridge").board
+    type_field = next(f for f in board["fields"] if f["name"] == "Type")
+    names = [o["name"] for o in type_field["options"]]
+    assert {"Epic", "Bug", "Feature", "Story", "Task"} <= set(names)
 
 
 def test_merged_epic_field_options_are_the_epic_codes():

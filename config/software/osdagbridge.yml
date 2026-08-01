@@ -75,6 +75,42 @@ area_labels:
     - {name: "area:ci-cd",             description: "CI workflows and quality gates"}
     - {name: "area:docs",              description: "Documentation"}
 
+# ── teams (who owns what, and who they report to) ────────────────────────────
+# Each team becomes one option on the board's Team field (derived — see
+# base.yml). `lead` and `members` are the reporting line the "By Team" view is
+# read against; GitHub can't enforce it, so it lives here as the single source of
+# truth. `areas` records which subsystems the team owns (documentation + a hook
+# for auto-suggesting a Team from an issue's area: labels later). Fill in real
+# GitHub handles as people join — `lead`/`members` are placeholders today.
+teams:
+  - name: "UI"
+    color: PURPLE
+    lead: "nishikantmandal007"
+    members: []
+    areas: [area:output-dock, area:girder-results, area:analysis-results, area:generate-results,
+            area:3d-cad, area:initial-cad, area:plots, area:toolbar,
+            area:typical-section, area:transverse-member, area:member-properties]
+  - name: "Design Core"
+    color: BLUE
+    lead: "nishikantmandal007"
+    members: []
+    areas: [area:design-core, area:analysis-opensees]
+  - name: "Reports & BOQ"
+    color: GREEN
+    lead: "nishikantmandal007"
+    members: []
+    areas: [area:reports, area:ifc-boq, area:generate-report]
+  - name: "Release & Infra"
+    color: ORANGE
+    lead: "nishikantmandal007"
+    members: []
+    areas: [area:packaging, area:ci-cd, area:memory-stability]
+  - name: "Docs"
+    color: GRAY
+    lead: "nishikantmandal007"
+    members: []
+    areas: [area:docs]
+
 # Upstream labels that map onto the new taxonomy. Applied when reconciling
 # labels onto the source repo so nothing is lost in translation.
 migrations:

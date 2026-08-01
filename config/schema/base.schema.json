@@ -71,8 +71,8 @@
         },
         "derived": {
           "type": "string",
-          "enum": ["epic", "area"],
-          "description": "Options are filled by the loader from the overlay (epics / area_labels)."
+          "enum": ["epic", "area", "team"],
+          "description": "Options are filled by the loader from the overlay (epics / area_labels / teams)."
         },
         "options": {
           "type": "array",

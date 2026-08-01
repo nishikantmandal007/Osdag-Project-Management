@@ -41,6 +41,26 @@ area_labels:
     - {name: "area:ci-cd",       description: "CI workflows and quality gates"}
     - {name: "area:docs",        description: "Documentation"}
 
+# Teams own subsystems; lead/members are the reporting line (config-only — see
+# osdagbridge.yml for the full note). Placeholders until the Osdag team adopts
+# the board; grow alongside area_labels and epics.
+teams:
+  - name: "Modules"
+    color: BLUE
+    lead: "nishikantmandal007"
+    members: []
+    areas: [area:connection, area:member]
+  - name: "UI"
+    color: PURPLE
+    lead: "nishikantmandal007"
+    members: []
+    areas: [area:ui-dock, area:cad]
+  - name: "Release & Docs"
+    color: GREEN
+    lead: "nishikantmandal007"
+    members: []
+    areas: [area:reports, area:packaging, area:ci-cd, area:docs]
+
 migrations: {}
 
 epics:

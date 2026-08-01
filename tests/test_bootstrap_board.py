@@ -88,11 +88,11 @@ def test_merge_adds_configured_status_flow_onto_github_default():
     names = [m["name"] for m in merged]
     # Every configured option is present, in config order, first.
     assert names[: len(config)] == [o["name"] for o in config]
-    assert "Merged" in names and "Triage" in names
+    assert "Live in Dev" in names and "Triage" in names
     # The new columns are reported as added; the two GitHub defaults that match a
     # config name by (In Progress, Done) are not re-added.
     assert "In Progress" not in added and "Done" not in added
-    assert "Backlog" in added and "Merged" in added
+    assert "Backlog" in added and "Live in Dev" in added
 
 
 def test_merge_preserves_unconfigured_option_never_deletes():

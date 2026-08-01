@@ -19,8 +19,9 @@ Two reasons, both expected:
    **Visibility → Public** (step 5), only you can see it. That's why "there's no
    board" — there is one, it's just private to you.
 2. **The board on GitHub is stale until the workflows run with a fresh token.**
-   All the recent config (Deploy stage field, Merged status, the eight views, the
-   renamed title) lives in `config/` in this repo. It is not on the live board
+   All the recent config (the single-axis Status with the release stages folded
+   in, the new Type and Team fields, the nine views, the renamed title) lives in
+   `config/` in this repo. It is not on the live board
    until `pm-bootstrap-board.yml` runs — and that needs a PAT, because
    `GITHUB_TOKEN` cannot write Projects V2. The earlier PAT is burned; mint a new
    one (step 1).
@@ -75,8 +76,9 @@ python -m project_management.bootstrap_board \
     --sprint-start today --apply
 ```
 
-This creates/updates every field (including **Deploy stage** and the **Merged**
-status), links the source repo, and builds all eight views. `--sprint-start today`
+This creates/updates every field (including the new **Type** and **Team** fields
+and the single-axis **Status** with **Live in Dev** and the release stages folded
+in), links the source repo, and builds all nine views. `--sprint-start today`
 makes sprint 1 begin on demo day instead of the date frozen in `config/base.yml`
 (sprint *length* is unchanged — see [SOP-03](SOP-03-sprint-cadence.md)). Running
 it twice changes nothing.
@@ -106,9 +108,10 @@ board has real content to walk through.
 - **The five workflow clicks:** [BOARD-SETUP](BOARD-SETUP.md) — Auto-add (one per
   source repo), closed→Done, merged→Done, auto-archive, added→Triage. The API
   can't set these; do them once.
-- **Two group-by toggles:** the **Release pipeline** view → group by **Deploy
-  stage**, and **Workload** → group by **Assignees**. GitHub has no API for a
-  view's grouping — one click each ([SOP-08](SOP-08-board-views.md)).
+- **Four group-by toggles:** **Workload** → group by **Assignees**, **By Team** →
+  group by **Team**, **By Type** → group by **Type**, and **Release pipeline** →
+  group by **Status**. GitHub has no API for a view's grouping — one click each
+  ([SOP-08](SOP-08-board-views.md)).
 
 ### 6. Verify it's live
 
@@ -122,7 +125,8 @@ python -m project_management.bootstrap_board \
 ```
 
 Then open <https://github.com/users/nishikantmandal007/projects/3> and eyeball it:
-title **OsdagBridge**, a **Deploy stage** field, a **Merged** status option, eight
+title **OsdagBridge**, the **Type** and **Team** fields, a single-axis **Status**
+with **Live in Dev** and the release stages folded in, nine
 views, and real issues on the board. (`--check` tests the token's permissions if
 you suspect a scope problem; `--introspect` dumps the GraphQL field-type shapes
 for debugging — neither is the board-state check, the re-run above is.)
@@ -140,7 +144,8 @@ open. A ten-minute path:
 2. **The hierarchy** (Part II) — open one epic, show its sub-issues; explain
    `type:/sev:/area:` on a real issue.
 3. **A day in the life** (Part IV) — take one issue from Triage → Ready → In
-   Progress → Merged → Done, live, on the board.
+   Progress → In Review → Live in Dev → QA/Verify → … → Done, live, on the board,
+   all on the one Status axis.
 4. **The two questions everyone asks** (Part V) — "can outsiders tamper?" (no —
    public is read-only) and "how do interns get on it without repo access?"
    (project access is separate from repo access; three options). Both are in

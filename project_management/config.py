@@ -277,11 +277,12 @@ def list_software() -> list[str]:
 def _build_board(base: dict, overlay: dict, epics: EpicConfig) -> dict:
     """Assemble the project.yml-shaped board dict from base + overlay.
 
-    The two `derived:` placeholders in `base["fields"]` are replaced in place
+    The three `derived:` placeholders in `base["fields"]` are replaced in place
     (preserving field order) with options built from the overlay: one Epic
-    option per epic `code`, and one Area option per `area:` label — UI areas
-    (those with an `alias`) purple, code areas blue, matching the hand-written
-    board this split replaces.
+    option per epic `code`; one Area option per `area:` label — UI areas (those
+    with an `alias`) purple, code areas blue; and one Team option per entry in
+    the overlay's `teams` block. Keeping these derived means the epic list, area
+    labels and team names are never written twice.
     """
     epic_options = [
         {"name": epic.code, "color": "PURPLE", "description": epic.title}
@@ -294,14 +295,23 @@ def _build_board(base: dict, overlay: dict, epics: EpicConfig) -> dict:
         area_options.append(
             {"name": short, "color": color, "description": entry.get("description", "")}
         )
+    team_options = [
+        {
+            "name": team["name"],
+            "color": team.get("color", "GRAY"),
+            "description": team.get("description", "") or f"Lead: {team['lead']}",
+        }
+        for team in overlay.get("teams", [])
+    ]
 
+    derived_options = {"epic": epic_options, "area": area_options, "team": team_options}
     fields: list[dict] = []
     for spec in base["fields"]:
         derived = spec.get("derived")
-        if derived == "epic":
-            fields.append({"name": spec["name"], "type": spec["type"], "options": epic_options})
-        elif derived == "area":
-            fields.append({"name": spec["name"], "type": spec["type"], "options": area_options})
+        if derived in derived_options:
+            fields.append(
+                {"name": spec["name"], "type": spec["type"], "options": derived_options[derived]}
+            )
         else:
             fields.append(spec)
 

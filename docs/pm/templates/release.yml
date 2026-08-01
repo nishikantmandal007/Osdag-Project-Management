@@ -3,12 +3,14 @@
 # This lives on a CODE repo (e.g. osdag-admin/OsdagBridge), NOT on the PM repo.
 # It builds the conda package once and promotes the SAME artifact through three
 # channel labels — dev -> test -> main — one label per release stage, and moves
-# the board's "Deploy stage" field to match. See docs/pm/SOP-11-release-pipeline.md.
+# the board item's "Status" to the matching lifecycle value. Status is a SINGLE
+# axis (Maya-style): the release stages live in Status, there is no separate
+# Deploy stage field. See docs/pm/SOP-11-release-pipeline.md.
 #
 # Three triggers, three promotions:
-#   push to default branch  -> build + upload to  dev   (Deploy stage: Dev)
-#   push a  v*-rc*  tag      -> copy   dev  -> test      (Deploy stage: Test)
-#   publish a GitHub Release -> copy   test -> main      (Deploy stage: In Production)
+#   push to default branch  -> build + upload to  dev   (Status: Live in Dev)
+#   push a  v*-rc*  tag      -> copy   dev  -> test      (Status: Ready for Test)
+#   publish a GitHub Release -> copy   test -> main      (Status: In Production)
 #
 # Secrets required on the code repo:
 #   ANACONDA_TOKEN  — anaconda.org token with upload rights to the `osdag` org
@@ -56,11 +58,11 @@ jobs:
           ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
           anaconda -t "$ANACONDA_TOKEN" upload --label dev --force /tmp/artifact/noarch/*.tar.bz2
-      - name: Move board Deploy stage → Dev
+      - name: Move board Status → Live in Dev
         env:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
-          DEPLOY_STAGE: "Dev"
-        run: ./scripts/set-deploy-stage.sh   # see SOP-11 "Wiring the board update"
+          STATUS_VALUE: "Live in Dev"
+        run: ./scripts/set-board-status.sh   # see SOP-11 "Wiring the board update"
 
   # ── RC tag → promote dev artifact to the test channel (no rebuild) ──────────
   promote-test:
@@ -77,11 +79,11 @@ jobs:
         run: |
           conda install -y anaconda-client
           anaconda -t "$ANACONDA_TOKEN" copy --from-label dev --to-label test "$PKG_SPEC"
-      - name: Move board Deploy stage → Test
+      - name: Move board Status → Ready for Test
         env:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
-          DEPLOY_STAGE: "Test"
-        run: ./scripts/set-deploy-stage.sh
+          STATUS_VALUE: "Ready for Test"
+        run: ./scripts/set-board-status.sh
 
   # ── GitHub Release published → promote test artifact to the main channel ────
   promote-main:
@@ -98,8 +100,8 @@ jobs:
         run: |
           conda install -y anaconda-client
           anaconda -t "$ANACONDA_TOKEN" copy --from-label test --to-label main "$PKG_SPEC"
-      - name: Move board Deploy stage → In Production
+      - name: Move board Status → In Production
         env:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
-          DEPLOY_STAGE: "In Production"
-        run: ./scripts/set-deploy-stage.sh
+          STATUS_VALUE: "In Production"
+        run: ./scripts/set-board-status.sh

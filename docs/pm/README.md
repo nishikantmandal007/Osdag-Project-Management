@@ -90,24 +90,27 @@ backlog and would otherwise blow past GitHub's 100-child ceiling. See
 
 | View | Layout | Answers |
 |---|---|---|
-| **Current Sprint** | Board | What are we doing right now? (`sprint:@current -status:Done`) |
+| **Current Sprint** | Table | What are we doing right now? (`sprint:@current -status:Done,On-Hold`) |
+| **Workload** | Board | Who's carrying the most this sprint? (group by **Assignees**; absorbs the old **By Owner**) |
+| **By Team** | Board | Every open card by owning team? (group by the **Team** field) |
+| **By Type** | Board | All epics / all bugs / all features at once? (group by the **Type** field) |
 | **Triage Queue** | Table | What just came in and needs a decision? |
 | **Backlog Grooming** | Table | What's unplanned and needs sizing? (`no:sprint`) |
 | **Epic Roadmap** | Roadmap | How are the outcomes tracking over time? |
 | **Release v1.0-GA** | Board | What's blocking the release? |
-| **By Owner** | Board | Who's carrying what this sprint? |
-| **Release pipeline** | Board | What's merged and where is it in the conda channels? (group by **Deploy stage**) |
-| **Workload** | Board | Who's carrying the most this sprint? (group by **Assignees**) |
+| **Release pipeline** | Board | The release-lifecycle tail moving through the conda channels? (group by **Status**) |
 
 **Current Sprint is empty until you sprint-plan** — nothing is assigned to a
 sprint on a fresh backlog. That is correct, not a bug. See
 [SOP-03 Sprint cadence](SOP-03-sprint-cadence.md).
 
-**Status vs Deploy stage — two axes.** **Status** is the dev flow and ends at
-**Merged** (PR merged to the default branch). Once merged, an item's release
-progress is tracked on the separate **Deploy stage** field
-(`Dev → Test → Ready for Prod → In Production`, blank = not deployed), set by the
-conda release pipeline (see [SOP-06](SOP-06-seeding-promotion.md) / epic E6).
+**Status — one axis (Maya-style).** There is **one** column. The dev flow and the
+release lifecycle live on the same axis: a card climbs In Review → **Live in Dev**
+(PR merged to the default/dev branch, running in Dev) → QA/Verify → Ready for Test
+→ Ready for Prod → In Production → Done, so its single Status tells you both "is it
+built?" and "is it shipped?". **Blocked** and **On-Hold** are off-flow parks. The
+release tail is advanced by the conda pipeline (epic E6 —
+[SOP-11](SOP-11-release-pipeline.md)); there is no separate *Deploy stage* field.
 
 ---
 
@@ -135,7 +138,7 @@ conda release pipeline (see [SOP-06](SOP-06-seeding-promotion.md) / epic E6).
 | [SOP-08](SOP-08-board-views.md) | Board fields and view filters reference |
 | [SOP-09](SOP-09-customizing.md) | Customizing the board — manual UI *and* YAML, with tutorials |
 | [SOP-10](SOP-10-osdag-admin-setup.md) | Standing the board up on osdag-admin, with access control |
-| [SOP-11](SOP-11-release-pipeline.md) | conda 3-channel release pipeline (dev → test → main) + Deploy stage |
+| [SOP-11](SOP-11-release-pipeline.md) | conda 3-channel release pipeline (dev → test → main); advances the **Status** field |
 | [DEMO](DEMO.md) | **Stand up a live public board to show the team** |
 | [BOARD-SETUP](BOARD-SETUP.md) | **The 5 manual clicks the API can't do** |
 | [PROMOTION](PROMOTION.md) | Governance: moving the canonical tracker (unowned — T15) |
