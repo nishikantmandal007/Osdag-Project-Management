@@ -14,9 +14,9 @@ on:
         required: true
         default: osdagbridge
       repo:
-        description: "Repository to file epics in (OWNER/NAME)"
-        required: true
-        default: nishikantmandal007/Osdag-Project-Management
+        description: "Override target repo (OWNER/NAME). Blank = the overlay's source repo, where the board tracks issues."
+        required: false
+        default: ""
       apply:
         description: "Apply changes (unchecked = dry run)"
         type: boolean
@@ -38,10 +38,15 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Reconcile epics
+        # Inputs go through env and a bash array so nothing is shell-injected and
+        # an empty repo simply falls back to the overlay's source repo.
         env:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
+          SOFTWARE: ${{ inputs.software }}
+          REPO: ${{ inputs.repo }}
+          APPLY: ${{ inputs.apply }}
         run: |
-          python -m project_management.epics \
-            --software "${{ inputs.software }}" \
-            --repo "${{ inputs.repo }}" \
-            ${{ inputs.apply && '--apply' || '' }}
+          args=(--software "$SOFTWARE")
+          [ -n "$REPO" ]        && args+=(--repo "$REPO")
+          [ "$APPLY" = "true" ] && args+=(--apply)
+          python -m project_management.epics "${args[@]}"

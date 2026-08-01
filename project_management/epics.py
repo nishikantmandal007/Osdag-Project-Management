@@ -1,9 +1,12 @@
 """Create the epic issues (L2) for a project's board.
 
-    python -m project_management.epics --software NAME --repo OWNER/NAME [--apply]
+    python -m project_management.epics --software NAME [--repo OWNER/NAME] [--apply]
 
 Epics are read from base.yml + config/software/NAME.yml (the ``--software``
-overlay); ``--repo`` is where the issues are filed.
+overlay). Under direct-from-repo intake epics live in the **source repo**
+alongside the stories and bugs they parent, so the board's own populate/Auto-add
+picks them up like any other issue; ``--repo`` defaults to the overlay's first
+``source_repos`` entry and is only passed to override that.
 
 Dry-run by default. Idempotent: every epic issue carries a hidden marker in its
 body (``<!-- pm-epic:KEY -->``), so a re-run finds its own work and creates
@@ -58,12 +61,24 @@ def _index_existing(client: Client) -> dict[str, dict]:
     return index
 
 
-def reconcile(repo: str, apply: bool, software: str) -> int:
+def reconcile(repo: str | None, apply: bool, software: str) -> int:
     try:
-        cfg: EpicConfig = load_merged(software).epics
+        merged = load_merged(software)
+        cfg: EpicConfig = merged.epics
     except ConfigError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+    # Default target = the overlay's source repo, so epics land where the board
+    # tracks issues from. --repo overrides for a one-off.
+    if repo is None:
+        source_repos = merged.meta.source_repos
+        if not source_repos:
+            print("error: no --repo given and overlay has no source_repos", file=sys.stderr)
+            return 2
+        repo = source_repos[0]
+        if len(source_repos) > 1:
+            print(f"note   : filing epics in {repo} (first of {len(source_repos)} source repos)")
 
     try:
         client = Client.from_env(repo)
@@ -157,7 +172,12 @@ def reconcile(repo: str, apply: bool, software: str) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="project_management.epics", description=__doc__)
-    parser.add_argument("--repo", required=True, metavar="OWNER/NAME")
+    parser.add_argument(
+        "--repo",
+        default=None,
+        metavar="OWNER/NAME",
+        help="override target repo (default: the overlay's first source_repos entry)",
+    )
     parser.add_argument("--apply", action="store_true", help="execute (default: dry-run)")
     parser.add_argument(
         "--software",
