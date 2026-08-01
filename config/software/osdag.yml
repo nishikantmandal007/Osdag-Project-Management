@@ -19,7 +19,7 @@ board_number: null
 logo: "https://osdag.fossee.in/sites/osdag.fossee.in/files/Logo_osdag.png"
 
 source_repos:
-  - osdag/osdag
+  - nishikantmandal007/Osdag
 
 conda_channels:
   dev:  "osdag/label/dev"
