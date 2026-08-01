@@ -70,6 +70,12 @@ and operating the reconciler. If you're standing the board up on another repo,
 read **[`docs/pm/BOARD-SETUP.md`](docs/pm/BOARD-SETUP.md)** first: five board
 automations have no API and must be clicked by hand.
 
+**Showing this to the team?** **[`docs/pm/DEMO.md`](docs/pm/DEMO.md)** is the
+runbook: mint a token, build the board on staging, make it public, and walk the
+team through it with the handbook — then hand off to
+[`docs/pm/SOP-10`](docs/pm/SOP-10-osdag-admin-setup.md) for the move to
+`osdag-admin`.
+
 ## Status
 
 Board live (project #3, 10 epics + 6 sub-epics). Reconciler

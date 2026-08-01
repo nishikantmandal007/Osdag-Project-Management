@@ -97,6 +97,7 @@ backlog and would otherwise blow past GitHub's 100-child ceiling. See
 | **Release v1.0-GA** | Board | What's blocking the release? |
 | **By Owner** | Board | Who's carrying what this sprint? |
 | **Release pipeline** | Board | What's merged and where is it in the conda channels? (group by **Deploy stage**) |
+| **Workload** | Board | Who's carrying the most this sprint? (group by **Assignees**) |
 
 **Current Sprint is empty until you sprint-plan** — nothing is assigned to a
 sprint on a fresh backlog. That is correct, not a bug. See
@@ -134,5 +135,7 @@ conda release pipeline (see [SOP-06](SOP-06-seeding-promotion.md) / epic E6).
 | [SOP-08](SOP-08-board-views.md) | Board fields and view filters reference |
 | [SOP-09](SOP-09-customizing.md) | Customizing the board — manual UI *and* YAML, with tutorials |
 | [SOP-10](SOP-10-osdag-admin-setup.md) | Standing the board up on osdag-admin, with access control |
+| [SOP-11](SOP-11-release-pipeline.md) | conda 3-channel release pipeline (dev → test → main) + Deploy stage |
+| [DEMO](DEMO.md) | **Stand up a live public board to show the team** |
 | [BOARD-SETUP](BOARD-SETUP.md) | **The 5 manual clicks the API can't do** |
 | [PROMOTION](PROMOTION.md) | Governance: moving the canonical tracker (unowned — T15) |
