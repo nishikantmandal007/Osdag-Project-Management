@@ -37,6 +37,10 @@ on:
         description: "Backfill: add every open repo issue to the board (needs apply)"
         type: boolean
         default: false
+      rename_from:
+        description: "One-time: move the board with THIS title to the config title, then exit (needs apply). e.g. OsdagBridge Delivery"
+        required: false
+        default: ""
 
 # contents:read is the minimum actions/checkout needs on a private repo.
 # Nothing else is granted: the default token cannot write Projects V2 at any
@@ -57,11 +61,24 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Bootstrap board
+        # Inputs are passed via env (not interpolated into the script) and
+        # assembled into a bash array, so a value with spaces like
+        # "OsdagBridge Delivery" is one argument and nothing is shell-injected.
         env:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
+          SOFTWARE: ${{ inputs.software }}
+          OWNER: ${{ inputs.owner }}
+          REPO: ${{ inputs.repo }}
+          RENAME_FROM: ${{ inputs.rename_from }}
+          APPLY: ${{ inputs.apply }}
+          CHECK_ONLY: ${{ inputs.check_only }}
+          INTROSPECT: ${{ inputs.introspect }}
+          POPULATE: ${{ inputs.populate }}
         run: |
-          python -m project_management.bootstrap_board \
-            --software "${{ inputs.software }}" \
-            --owner "${{ inputs.owner }}" \
-            --repo  "${{ inputs.repo }}" \
-            ${{ inputs.introspect && '--introspect' || (inputs.check_only && '--check' || (inputs.populate && (inputs.apply && '--populate --apply' || '--populate') || (inputs.apply && '--apply' || ''))) }}
+          args=(--software "$SOFTWARE" --owner "$OWNER" --repo "$REPO")
+          [ -n "$RENAME_FROM" ]      && args+=(--rename-from "$RENAME_FROM")
+          [ "$INTROSPECT" = "true" ] && args+=(--introspect)
+          [ "$CHECK_ONLY" = "true" ] && args+=(--check)
+          [ "$POPULATE" = "true" ]   && args+=(--populate)
+          [ "$APPLY" = "true" ]      && args+=(--apply)
+          python -m project_management.bootstrap_board "${args[@]}"
