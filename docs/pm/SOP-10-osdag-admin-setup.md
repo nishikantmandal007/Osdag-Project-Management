@@ -41,7 +41,7 @@ PR it, merge. Everything below reads `source_repos` from here.
 ## 2. Dry-run the board
 
 ```
-python -m pm.bootstrap_board --owner osdag-admin --software <name>
+python -m project_management.bootstrap_board --owner osdag-admin --software <name>
 ```
 
 Dry-run is the default: it prints what it *would* create (project, links, fields,
@@ -50,7 +50,7 @@ views) and changes nothing. Read the plan.
 ## 3. Reconcile the labels onto the source repos
 
 ```
-python -m pm.reconcile --software <name> --apply
+python -m project_management.reconcile --software <name> --apply
 ```
 
 Targets every `source_repo`. This needs the PAT's Issues:write on them. Dry-run
@@ -59,7 +59,7 @@ first (drop `--apply`) if you want to see the plan.
 ## 4. Create the board — first sprint starts today
 
 ```
-python -m pm.bootstrap_board --owner osdag-admin --software <name> \
+python -m project_management.bootstrap_board --owner osdag-admin --software <name> \
     --sprint-start today --apply
 ```
 
@@ -76,8 +76,8 @@ After it runs, copy the board number it prints back into the overlay's
 ## 5. File the epics and backfill the issues
 
 ```
-python -m pm.epics --software <name> --repo osdag-admin/OsdagBridge --apply
-python -m pm.bootstrap_board --owner osdag-admin --software <name> --populate --apply
+python -m project_management.epics --software <name> --repo osdag-admin/OsdagBridge --apply
+python -m project_management.bootstrap_board --owner osdag-admin --software <name> --populate --apply
 ```
 
 `--populate` adds every open source-repo issue to the board (idempotent). New

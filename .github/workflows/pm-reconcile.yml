@@ -58,7 +58,7 @@ jobs:
         env:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
         run: |
-          python -m pm.health --repo "${{ github.repository }}" | tee health.log
+          python -m project_management.health --repo "${{ github.repository }}" | tee health.log
           echo "healthy=$(jq -r '.healthy' .health-report.json)" >> "$GITHUB_OUTPUT"
 
       # The nightly reconciles THIS repo's own process labels (type:/area:), which
@@ -73,7 +73,7 @@ jobs:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
           SOFTWARE: ${{ inputs.software || 'osdagbridge' }}
         run: |
-          python -m pm.reconcile \
+          python -m project_management.reconcile \
             --software "$SOFTWARE" \
             --repo "${{ github.repository }}" \
             ${{ (github.event_name == 'workflow_dispatch' && inputs.apply) && '--apply' || '--dry-run' }} \

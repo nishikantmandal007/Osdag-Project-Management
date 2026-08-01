@@ -9,7 +9,7 @@ those repos' issues onto itself.
 
 This replaced an earlier **mirror** model (a seeder that copied upstream issues
 into the PM repo with a `<!-- src:REPO#N -->` marker and a backlink). The mirror
-is retired — `pm/seed.py`, `config/seed*.{yml,json}`, `config/issue-map.yml` and
+is retired — `project_management/seed.py`, `config/seed*.{yml,json}`, `config/issue-map.yml` and
 `pm-seed.yml` are gone from the promoted path (still in git history). Direct
 intake is simpler and truthful: one issue, one home, no renumbering, no drift
 between a copy and its original.
@@ -42,8 +42,8 @@ Because issues live in their own repos, `type:/sev:/area:` labels must exist
 **there**, on the real issues:
 
 ```
-python -m pm.reconcile --software NAME            # every source_repo in the overlay
-python -m pm.reconcile --software NAME --repo O/N  # just one (e.g. the PM repo itself)
+python -m project_management.reconcile --software NAME            # every source_repo in the overlay
+python -m project_management.reconcile --software NAME --repo O/N  # just one (e.g. the PM repo itself)
 ```
 
 The label *config* comes from `--software` (base.yml + the overlay); the

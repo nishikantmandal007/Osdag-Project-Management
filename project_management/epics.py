@@ -1,6 +1,6 @@
 """Create the epic issues (L2) for a project's board.
 
-    python -m pm.epics --software NAME --repo OWNER/NAME [--apply]
+    python -m project_management.epics --software NAME --repo OWNER/NAME [--apply]
 
 Epics are read from base.yml + config/software/NAME.yml (the ``--software``
 overlay); ``--repo`` is where the issues are filed.
@@ -156,7 +156,7 @@ def reconcile(repo: str, apply: bool, software: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="pm.epics", description=__doc__)
+    parser = argparse.ArgumentParser(prog="project_management.epics", description=__doc__)
     parser.add_argument("--repo", required=True, metavar="OWNER/NAME")
     parser.add_argument("--apply", action="store_true", help="execute (default: dry-run)")
     parser.add_argument(

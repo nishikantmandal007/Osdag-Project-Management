@@ -14,8 +14,8 @@ Two of these are load-bearing for the whole design:
 
 import pytest
 
-from pm.config import Label, LabelConfig
-from pm.plan import Action, plan_labels
+from project_management.config import Label, LabelConfig
+from project_management.plan import Action, plan_labels
 
 
 def cfg(*labels, protected=(), migrations=None):

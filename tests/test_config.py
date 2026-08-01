@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from pm.config import (
+from project_management.config import (
     ConfigError,
     list_software,
     load_merged,

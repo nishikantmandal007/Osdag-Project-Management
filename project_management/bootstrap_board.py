@@ -1,6 +1,6 @@
 """Create or reconcile a project's Projects V2 board from base.yml + its overlay.
 
-    python -m pm.bootstrap_board --owner LOGIN --software NAME [--apply]
+    python -m project_management.bootstrap_board --owner LOGIN --software NAME [--apply]
 
 Dry-run by default. Idempotent: fields and views already present are left
 alone, so re-running is a no-op and standing up a second project's board is the
@@ -420,7 +420,7 @@ def _apply_sprint_start(config: dict, value: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="pm.bootstrap_board", description=__doc__)
+    parser = argparse.ArgumentParser(prog="project_management.bootstrap_board", description=__doc__)
     parser.add_argument("--owner", required=True, help="user or org login that owns the board")
     parser.add_argument(
         "--repo",

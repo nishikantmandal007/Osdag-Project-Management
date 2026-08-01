@@ -1,8 +1,8 @@
 """Make each of a project's source repos match `config/`.
 
-    python -m pm.reconcile --software osdagbridge --dry-run
-    python -m pm.reconcile --software osdagbridge --apply
-    python -m pm.reconcile --software osdagbridge --repo owner/name   # one repo
+    python -m project_management.reconcile --software osdagbridge --dry-run
+    python -m project_management.reconcile --software osdagbridge --apply
+    python -m project_management.reconcile --software osdagbridge --repo owner/name   # one repo
 
 The label set comes from ``--software`` (base.yml + the overlay). The *targets*
 are the overlay's ``source_repos`` — labels-as-code lives on the real issues, in
@@ -141,7 +141,7 @@ def reconcile_repo(config, repo: str, apply: bool) -> tuple[Plan, int]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="pm.reconcile", description=__doc__)
+    parser = argparse.ArgumentParser(prog="project_management.reconcile", description=__doc__)
     parser.add_argument(
         "--software",
         required=True,

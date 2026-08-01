@@ -2,7 +2,7 @@
 
 Epics are the L2 layer: outcome-level containers that close when the outcome is
 achieved, not when a task is done. They are declarative — a project's
-`config/software/NAME.yml:epics` is the source of truth and `pm/epics.py`
+`config/software/NAME.yml:epics` is the source of truth and `project_management/epics.py`
 reconciles it.
 
 ## How an epic is defined

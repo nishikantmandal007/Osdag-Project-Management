@@ -1,7 +1,7 @@
 """Diff desired config against live repo state and emit a plan.
 
 Pure functions, no network. Everything here is decided from two plain inputs —
-the desired :class:`~pm.config.LabelConfig` and a snapshot of what the repo
+the desired :class:`~project_management.config.LabelConfig` and a snapshot of what the repo
 currently has — so the whole decision surface is unit-testable and `--dry-run`
 prints exactly what a real run would do.
 

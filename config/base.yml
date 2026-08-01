@@ -1,8 +1,8 @@
 # Project-invariant base — the shared half of every board.
 #
-# One engine (pm/) runs several FOSSEE-project boards (Osdag, OsdagBridge, …).
+# One engine (project_management/) runs several FOSSEE-project boards (Osdag, OsdagBridge, …).
 # What is IDENTICAL across those projects lives here; what DIFFERS lives in a
-# per-project overlay `config/software/<name>.yml`. `pm.config.load_merged(name)`
+# per-project overlay `config/software/<name>.yml`. `project_management.config.load_merged(name)`
 # deep-merges the two into the same document shapes the single-file loaders used
 # to validate, so nothing downstream had to change.
 #
@@ -83,7 +83,7 @@ protected:
   - dependencies
 
 # ── shared board fields ──────────────────────────────────────────────────────
-# Everything here is created through GraphQL (see pm/project.py). The two
+# Everything here is created through GraphQL (see project_management/project.py). The two
 # `derived:` entries are placeholders: the loader replaces them with an
 # `options:` list built from the overlay, keeping field ORDER intact
 # (Status, Sprint, Priority, Severity, Size, Points, Epic, Area, Target

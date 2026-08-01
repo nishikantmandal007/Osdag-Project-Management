@@ -36,7 +36,7 @@ config/base.yml       Shared across every project — type:/sev: labels, board
 config/software/*.yml  One overlay per project — its areas, epics, source
                         repo(s), board title. `--software NAME` merges base + overlay.
 config/rollup.yml      The "All Projects" board that spans every project.
-pm/                    Python reconciler. Reads config/, makes GitHub match it.
+project_management/    Python reconciler. Reads config/, makes GitHub match it.
 docs/pm/               README front door + SOP appendices + board setup checklist.
 .github/               Issue forms, PR template, and the pm-* workflows.
 tests/                 pytest for the reconciler itself.
@@ -79,6 +79,6 @@ landed. Config is now split base + per-project overlay (`--software`); intake is
 **direct-from-repo** — each board tracks its `source_repos`' issues in place (the
 mirror/seeder is retired). The board title is set to plain **OsdagBridge** in
 config — the one-time live rename
-(`pm.bootstrap_board --rename-from "OsdagBridge Delivery" --apply`, needs the
+(`project_management.bootstrap_board --rename-from "OsdagBridge Delivery" --apply`, needs the
 PAT) is pending. Still open: the analytics bots and governance sign-off
 ([`docs/pm/PROMOTION.md`](docs/pm/PROMOTION.md)). See the tracker for detail.

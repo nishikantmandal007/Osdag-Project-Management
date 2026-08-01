@@ -12,8 +12,8 @@
 
 import pytest
 
-from pm.config import ConfigError, _epics_from_document, load_merged
-from pm.epics import MARKER_RE, _epic_body, _sub_body
+from project_management.config import ConfigError, _epics_from_document, load_merged
+from project_management.epics import MARKER_RE, _epic_body, _sub_body
 
 
 def known_labels() -> set[str]:

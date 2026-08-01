@@ -3,14 +3,14 @@
 # The half of the board that is specific to OsdagBridge: its subsystems
 # (area: labels), its epics, the source repo(s) its issues live in, and the
 # conda channels it releases to. `config/base.yml` supplies everything shared.
-# `pm.config.load_merged("osdagbridge")` stitches the two together.
+# `project_management.config.load_merged("osdagbridge")` stitches the two together.
 #
 # NOTE: `display_name` is the board title. Under the "Osdag Project Management"
 # suite, boards use the plain project name, so this is "OsdagBridge" (it was
 # "OsdagBridge Delivery" when board #3 was created). Because find_project matches
 # on title, the live board must be moved to the new title in one step —
-# `pm.bootstrap_board --rename-from "OsdagBridge Delivery" --apply` (updateProjectV2,
-# see pm/project.py:rename_project) — otherwise a plain bootstrap run would create
+# `project_management.bootstrap_board --rename-from "OsdagBridge Delivery" --apply` (updateProjectV2,
+# see project_management/project.py:rename_project) — otherwise a plain bootstrap run would create
 # a second board. That rename needs the PAT and is a one-time manual/CI step.
 
 version: 1

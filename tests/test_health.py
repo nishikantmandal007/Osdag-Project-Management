@@ -13,7 +13,7 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from pm.health import (
+from project_management.health import (
     check_health,
     heartbeat_age,
     write_health_report,
@@ -113,7 +113,7 @@ def test_epic_is_exempt(tmp_path: Path):
 # ── report ───────────────────────────────────────────────────────────────────
 
 def test_report_roundtrips(tmp_path: Path, monkeypatch):
-    import pm.health as health
+    import project_management.health as health
     monkeypatch.setattr(health, "HEALTH_REPORT", tmp_path / ".health-report.json")
     issues = [_issue(7, days_old=40, labels=["type:bug", "area:reports"])]
     findings = check_health(issues, NOW, heartbeat_path=_fresh_hb(tmp_path))

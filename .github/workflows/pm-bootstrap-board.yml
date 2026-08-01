@@ -60,7 +60,7 @@ jobs:
         env:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
         run: |
-          python -m pm.bootstrap_board \
+          python -m project_management.bootstrap_board \
             --software "${{ inputs.software }}" \
             --owner "${{ inputs.owner }}" \
             --repo  "${{ inputs.repo }}" \

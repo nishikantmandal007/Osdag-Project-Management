@@ -1,6 +1,6 @@
 """Board-health check: surface what the board is quietly failing to track.
 
-    python -m pm.health --repo owner/name
+    python -m project_management.health --repo owner/name
 
 Read-only over issue metadata (REST) plus the reconciler's heartbeat. Unlike the
 label reconciler this is **not a gate** — stale issues are a normal fact of a
@@ -189,7 +189,7 @@ def write_health_report(findings: list[Finding], repo: str, now: datetime) -> No
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="pm.health", description=__doc__)
+    parser = argparse.ArgumentParser(prog="project_management.health", description=__doc__)
     parser.add_argument("--repo", required=True, metavar="OWNER/NAME")
     parser.add_argument(
         "--stale-days", type=int, default=STALE_DAYS, help=f"age past which gaps matter (default {STALE_DAYS})"

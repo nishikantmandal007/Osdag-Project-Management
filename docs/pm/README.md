@@ -22,7 +22,7 @@ document explains *how work flows through it*.
 
 - **Board:** <https://github.com/users/nishikantmandal007/projects/3> — "OsdagBridge"
   (renamed in place from "OsdagBridge Delivery"; if the live rename is still
-  pending it shows the old title until `pm.bootstrap_board --rename-from` runs).
+  pending it shows the old title until `project_management.bootstrap_board --rename-from` runs).
 - **Config is the source of truth.** Labels, epics, board fields and views come
   from `config/base.yml` (shared) merged with `config/software/osdagbridge.yml`
   (this project's areas + epics). The reconciler makes GitHub match it; you change

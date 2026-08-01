@@ -1,7 +1,7 @@
 """Thin GitHub REST client for the reconciler.
 
 Deliberately small: list labels, create, update, rename. There is no delete
-method and there should never be one — see :mod:`pm.plan`.
+method and there should never be one — see :mod:`project_management.plan`.
 
 Auth comes from ``GH_PM_TOKEN`` (a fine-grained PAT), falling back to
 ``GITHUB_TOKEN``. Note that ``GITHUB_TOKEN`` is sufficient for labels but

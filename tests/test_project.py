@@ -8,8 +8,8 @@ the fact that the merged config now declares the renamed title.
 
 from __future__ import annotations
 
-from pm.config import load_merged
-from pm.project import rename_project
+from project_management.config import load_merged
+from project_management.project import rename_project
 
 
 class FakeGQL:

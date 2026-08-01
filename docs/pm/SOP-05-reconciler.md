@@ -14,10 +14,10 @@ Idempotency is the property that makes promotion safe.
 
 | Command / workflow | Reconciles | Notes |
 |---|---|---|
-| `python -m pm.reconcile --repo O/N --dry-run` | Labels | Exit 1 = drift found; exit 2 = config invalid |
-| `python -m pm.bootstrap_board --owner L --repo O/N` | Board fields + views | `--apply` to write; `--populate` to backfill issues |
-| `python -m pm.epics --repo O/N` | Epics + sub-epics | Marker-idempotent, report-only |
-| `python -m pm.seed --repo O/N` | Upstream issues | One-way mirror; see [SOP-06](SOP-06-seeding-promotion.md) |
+| `python -m project_management.reconcile --repo O/N --dry-run` | Labels | Exit 1 = drift found; exit 2 = config invalid |
+| `python -m project_management.bootstrap_board --owner L --repo O/N` | Board fields + views | `--apply` to write; `--populate` to backfill issues |
+| `python -m project_management.epics --repo O/N` | Epics + sub-epics | Marker-idempotent, report-only |
+| `python -m project_management.seed --repo O/N` | Upstream issues | One-way mirror; see [SOP-06](SOP-06-seeding-promotion.md) |
 
 Locally use `python3` (this machine has no `python`). In Actions everything runs
 with `GH_PM_TOKEN`, so the token never transits a laptop or chat.
@@ -25,7 +25,7 @@ with `GH_PM_TOKEN`, so the token never transits a laptop or chat.
 ## Reading a dry-run
 
 ```
-python3 -m pm.reconcile --repo nishikantmandal007/osdagbridge-pm --dry-run
+python3 -m project_management.reconcile --repo nishikantmandal007/osdagbridge-pm --dry-run
 ```
 
 - `created` / `updated` / `renamed` — what an `--apply` *would* do.
@@ -57,7 +57,7 @@ timestamp in git stops advancing, and the next run that does fire alarms on it.
 reason; the reports (`.drift-report.json`, `.health-report.json`) stay ignored
 and are uploaded as CI artifacts instead.
 
-The board-**health** check (`python -m pm.health --repo O/N`) runs first in the
+The board-**health** check (`python -m project_management.health --repo O/N`) runs first in the
 nightly, *before* the heartbeat is overwritten, and produces two signals:
 
 - **Liveness** — the heartbeat is older than one nightly cycle (36h) → the
@@ -72,7 +72,7 @@ fails the build — stale issues are normal, not a CI error.
 > **Documented limitation:** epic membership is a board *field*, not a label,
 > until the v2 `epic:` namespace ships, so "no epic" cannot be seen from issue
 > metadata and is not checked. Claiming to check it would false-positive on every
-> issue. One line of `pm/health.py` enables it once `epic:` labels exist.
+> issue. One line of `project_management/health.py` enables it once `epic:` labels exist.
 
 ## Applying for real
 

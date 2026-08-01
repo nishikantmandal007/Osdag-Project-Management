@@ -41,7 +41,7 @@ jobs:
         env:
           GH_PM_TOKEN: ${{ secrets.GH_PM_TOKEN }}
         run: |
-          python -m pm.epics \
+          python -m project_management.epics \
             --software "${{ inputs.software }}" \
             --repo "${{ inputs.repo }}" \
             ${{ inputs.apply && '--apply' || '' }}

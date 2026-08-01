@@ -13,9 +13,9 @@ from datetime import date
 
 import pytest
 
-from pm.bootstrap_board import _apply_sprint_start
-from pm.config import load_merged
-from pm.project import ProjectError
+from project_management.bootstrap_board import _apply_sprint_start
+from project_management.config import load_merged
+from project_management.project import ProjectError
 
 
 def _board():
